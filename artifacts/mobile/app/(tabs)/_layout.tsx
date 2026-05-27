@@ -1,13 +1,42 @@
 import { BlurView } from "expo-blur";
+import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
-import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
+import { Feather, MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
 
-export default function TabLayout() {
+function NativeTabLayout() {
+  return (
+    <NativeTabs>
+      <NativeTabs.Trigger name="index">
+        <Icon sf={{ default: "house", selected: "house.fill" }} />
+        <Label>Dashboard</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="my-loans">
+        <Icon sf={{ default: "doc.text", selected: "doc.text.fill" }} />
+        <Label>My Loans</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="emi-payments">
+        <Icon sf={{ default: "creditcard", selected: "creditcard.fill" }} />
+        <Label>EMI Payments</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="offers">
+        <Icon sf={{ default: "gift", selected: "gift.fill" }} />
+        <Label>Offers</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="more">
+        <Icon sf={{ default: "ellipsis", selected: "ellipsis.circle.fill" }} />
+        <Label>More</Label>
+      </NativeTabs.Trigger>
+    </NativeTabs>
+  );
+}
+
+function ClassicTabLayout() {
   const colors = useColors();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -27,11 +56,11 @@ export default function TabLayout() {
           borderTopColor: colors.border,
           elevation: 0,
           height: isWeb ? 84 : 60,
-          paddingBottom: isWeb ? 12 : 6,
         },
         tabBarLabelStyle: {
           fontSize: 10,
           fontFamily: "Inter_500Medium",
+          marginBottom: isWeb ? 0 : 4,
         },
         tabBarBackground: () =>
           isIOS ? (
@@ -40,9 +69,14 @@ export default function TabLayout() {
               tint={isDark ? "dark" : "light"}
               style={StyleSheet.absoluteFill}
             />
-          ) : (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.card }]} />
-          ),
+          ) : isWeb ? (
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: colors.card },
+              ]}
+            />
+          ) : null,
       }}
     >
       <Tabs.Screen
@@ -82,18 +116,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="emi-calculator"
-        options={{
-          title: "Calculator",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="function" tintColor={color} size={22} />
-            ) : (
-              <MaterialCommunityIcons name="calculator-variant-outline" size={22} color={color} />
-            ),
-        }}
-      />
-      <Tabs.Screen
         name="offers"
         options={{
           title: "Offers",
@@ -119,4 +141,11 @@ export default function TabLayout() {
       />
     </Tabs>
   );
+}
+
+export default function TabLayout() {
+  if (isLiquidGlassAvailable()) {
+    return <NativeTabLayout />;
+  }
+  return <ClassicTabLayout />;
 }
