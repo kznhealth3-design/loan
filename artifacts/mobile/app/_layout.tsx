@@ -15,7 +15,6 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
@@ -37,13 +36,18 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
+    // Hide splash as soon as fonts are ready OR after 1.5 s max —
+    // so a slow network never leaves the user on a blank screen.
     if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
+      return;
     }
+    const timer = setTimeout(() => SplashScreen.hideAsync(), 1500);
+    return () => clearTimeout(timer);
   }, [fontsLoaded, fontError]);
 
-  if (!fontsLoaded && !fontError) return null;
-
+  // Render the app immediately instead of returning null while fonts load.
+  // Text will fall back to the system font for ~1 s then swap in Inter.
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
