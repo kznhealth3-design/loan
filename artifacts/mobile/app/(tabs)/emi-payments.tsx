@@ -1,8 +1,10 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
+  Alert,
+  Modal,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,98 +15,582 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 
-const PAYMENTS = [
-  { id: "1", title: "EMI Payment", subtitle: "Home Loan •••• 5678", amount: -200.0, date: "Apr 25, 2024", type: "emi", status: "Success" },
-  { id: "2", title: "EMI Payment", subtitle: "Personal Loan •••• 4321", amount: -50.0, date: "Apr 10, 2024", type: "emi", status: "Success" },
-  { id: "3", title: "Loan Disbursed", subtitle: "Personal Loan •••• 4321", amount: 2200.0, date: "Apr 01, 2024", type: "disbursed", status: "Credited" },
-  { id: "4", title: "EMI Payment", subtitle: "Home Loan •••• 5678", amount: -200.0, date: "Mar 25, 2024", type: "emi", status: "Success" },
-  { id: "5", title: "EMI Payment", subtitle: "Personal Loan •••• 4321", amount: -50.0, date: "Mar 10, 2024", type: "emi", status: "Success" },
-  { id: "6", title: "EMI Payment", subtitle: "Home Loan •••• 5678", amount: -200.0, date: "Feb 25, 2024", type: "emi", status: "Success" },
+type TabId = "due" | "paid" | "all";
+
+const DUE_EMIS = [
+  {
+    id: "due1",
+    loanType: "Home Loan",
+    loanId: "HL12345678",
+    emiNumber: 21,
+    totalEmis: 30,
+    dueDate: "May 25, 2024",
+    amount: 200.0,
+    principal: 150.0,
+    interest: 50.0,
+    icon: "home" as const,
+    iconColor: "#4F46E5",
+    iconBg: "#EEF2FF",
+    isNext: true,
+  },
 ];
+
+const UPCOMING_EMIS = [
+  {
+    id: "up1",
+    loanType: "Home Loan",
+    loanId: "HL12345678",
+    emiNumber: 22,
+    totalEmis: 30,
+    dueDate: "Jun 25, 2024",
+    amount: 200.0,
+    icon: "home" as const,
+    iconColor: "#4F46E5",
+    iconBg: "#EEF2FF",
+  },
+  {
+    id: "up2",
+    loanType: "Personal Loan",
+    loanId: "PL87654321",
+    emiNumber: 15,
+    totalEmis: 20,
+    dueDate: "Jun 10, 2024",
+    amount: 50.0,
+    icon: "user" as const,
+    iconColor: "#10B981",
+    iconBg: "#D1FAE5",
+  },
+  {
+    id: "up3",
+    loanType: "Home Loan",
+    loanId: "HL12345678",
+    emiNumber: 23,
+    totalEmis: 30,
+    dueDate: "Jul 25, 2024",
+    amount: 200.0,
+    icon: "home" as const,
+    iconColor: "#4F46E5",
+    iconBg: "#EEF2FF",
+  },
+  {
+    id: "up4",
+    loanType: "Personal Loan",
+    loanId: "PL87654321",
+    emiNumber: 16,
+    totalEmis: 20,
+    dueDate: "Jul 10, 2024",
+    amount: 50.0,
+    icon: "user" as const,
+    iconColor: "#10B981",
+    iconBg: "#D1FAE5",
+  },
+];
+
+const PAID_EMIS = [
+  { id: "p1", loanType: "Home Loan", loanId: "HL12345678", emiNumber: 20, totalEmis: 30, date: "Apr 25, 2024", amount: 200.0, icon: "home" as const, iconColor: "#4F46E5", iconBg: "#EEF2FF" },
+  { id: "p2", loanType: "Personal Loan", loanId: "PL87654321", emiNumber: 14, totalEmis: 20, date: "May 10, 2024", amount: 50.0, icon: "user" as const, iconColor: "#10B981", iconBg: "#D1FAE5" },
+  { id: "p3", loanType: "Home Loan", loanId: "HL12345678", emiNumber: 19, totalEmis: 30, date: "Mar 25, 2024", amount: 200.0, icon: "home" as const, iconColor: "#4F46E5", iconBg: "#EEF2FF" },
+  { id: "p4", loanType: "Personal Loan", loanId: "PL87654321", emiNumber: 13, totalEmis: 20, date: "Apr 10, 2024", amount: 50.0, icon: "user" as const, iconColor: "#10B981", iconBg: "#D1FAE5" },
+  { id: "p5", loanType: "Home Loan", loanId: "HL12345678", emiNumber: 18, totalEmis: 30, date: "Feb 25, 2024", amount: 200.0, icon: "home" as const, iconColor: "#4F46E5", iconBg: "#EEF2FF" },
+  { id: "p6", loanType: "Personal Loan", loanId: "PL87654321", emiNumber: 12, totalEmis: 20, date: "Mar 10, 2024", amount: 50.0, icon: "user" as const, iconColor: "#10B981", iconBg: "#D1FAE5" },
+];
+
+type DueEmi = typeof DUE_EMIS[0];
+
+function PaymentModal({ emi, onClose, onSuccess }: { emi: DueEmi; onClose: () => void; onSuccess: () => void }) {
+  const colors = useColors();
+  const [step, setStep] = useState<"confirm" | "processing" | "success">("confirm");
+  const [method, setMethod] = useState<"upi" | "card" | "netbanking">("upi");
+
+  const handlePay = () => {
+    setStep("processing");
+    setTimeout(() => setStep("success"), 1800);
+  };
+
+  if (step === "success") {
+    return (
+      <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+        <Pressable style={styles.overlay} onPress={() => {}}>
+          <View style={[styles.sheet, { backgroundColor: colors.card }]}>
+            <View style={styles.handle} />
+            <View style={styles.successWrap}>
+              <View style={styles.successIconWrap}>
+                <Feather name="check-circle" size={58} color="#10B981" />
+              </View>
+              <Text style={[styles.successTitle, { color: colors.foreground }]}>Payment Successful!</Text>
+              <Text style={[styles.successSub, { color: colors.mutedForeground }]}>
+                EMI #{emi.emiNumber} of{" "}<Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold" }}>{emi.loanType}</Text>{"\n"}
+                <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold" }}>$ {emi.amount.toFixed(2)}</Text>{" "}paid successfully.
+              </Text>
+              <View style={[styles.txnCard, { backgroundColor: colors.accent, borderColor: colors.border }]}>
+                <Text style={[styles.txnLabel, { color: colors.mutedForeground }]}>Transaction ID</Text>
+                <Text style={[styles.txnValue, { color: colors.foreground }]}>TXN{Date.now().toString().slice(-8)}</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.doneBtn, { backgroundColor: colors.primary }]}
+                onPress={() => { onClose(); onSuccess(); }}
+              >
+                <Text style={styles.doneBtnText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+    );
+  }
+
+  const methods = [
+    { id: "upi", label: "UPI", icon: "smartphone" },
+    { id: "card", label: "Debit / Credit Card", icon: "credit-card" },
+    { id: "netbanking", label: "Net Banking", icon: "globe" },
+  ] as const;
+
+  return (
+    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable style={[styles.sheet, { backgroundColor: colors.card }]} onPress={() => {}}>
+          <View style={styles.handle} />
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Pay EMI</Text>
+            <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: colors.muted }]}>
+              <Feather name="x" size={16} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={[styles.paymentSummary, { backgroundColor: colors.accent, borderColor: colors.border }]}>
+            <View>
+              <Text style={[styles.summaryLoanName, { color: colors.foreground }]}>{emi.loanType}</Text>
+              <Text style={[styles.summaryLoanId, { color: colors.mutedForeground }]}>EMI #{emi.emiNumber} of {emi.totalEmis}</Text>
+              <Text style={[styles.summaryDueDate, { color: colors.mutedForeground }]}>Due: {emi.dueDate}</Text>
+            </View>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={[styles.summaryLoanId, { color: colors.mutedForeground }]}>Amount</Text>
+              <Text style={[styles.summaryAmount, { color: colors.primary }]}>$ {emi.amount.toFixed(2)}</Text>
+            </View>
+          </View>
+
+          <Text style={[styles.sectionSmall, { color: colors.foreground }]}>Payment Method</Text>
+          <View style={{ gap: 8, marginBottom: 20 }}>
+            {methods.map((m) => (
+              <TouchableOpacity
+                key={m.id}
+                style={[
+                  styles.methodRow,
+                  { borderColor: method === m.id ? colors.primary : colors.border, backgroundColor: method === m.id ? colors.accent : colors.card },
+                ]}
+                onPress={() => setMethod(m.id as any)}
+              >
+                <View style={[styles.methodIconWrap, { backgroundColor: method === m.id ? colors.secondary : colors.muted }]}>
+                  <Feather name={m.icon} size={16} color={method === m.id ? colors.primary : colors.mutedForeground} />
+                </View>
+                <Text style={[styles.methodLabel, { color: colors.foreground }]}>{m.label}</Text>
+                <View style={[styles.radio, { borderColor: method === m.id ? colors.primary : colors.border }]}>
+                  {method === m.id && <View style={[styles.radioDot, { backgroundColor: colors.primary }]} />}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TouchableOpacity
+            style={[styles.payActionBtn, { backgroundColor: colors.primary }, step === "processing" && { opacity: 0.7 }]}
+            onPress={handlePay}
+            disabled={step === "processing"}
+          >
+            <Text style={styles.payActionText}>
+              {step === "processing" ? "Processing..." : `Pay $ ${emi.amount.toFixed(2)}`}
+            </Text>
+          </TouchableOpacity>
+          <Text style={[styles.disclaimer, { color: colors.mutedForeground }]}>
+            Secured payment • 256-bit encryption
+          </Text>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+function EmiDetailModal({ emi, onClose }: { emi: typeof PAID_EMIS[0] | typeof UPCOMING_EMIS[0]; onClose: () => void }) {
+  const colors = useColors();
+  const isPaid = "date" in emi;
+  return (
+    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable style={[styles.sheet, { backgroundColor: colors.card }]} onPress={() => {}}>
+          <View style={styles.handle} />
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>EMI Details</Text>
+            <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: colors.muted }]}>
+              <Feather name="x" size={16} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
+          <View style={[styles.detailHeaderCard, { backgroundColor: emi.iconBg }]}>
+            <View style={[styles.detailIconCircle, { backgroundColor: emi.iconBg }]}>
+              <Feather name={emi.icon} size={26} color={emi.iconColor} />
+            </View>
+            <Text style={[styles.detailLoanName, { color: "#1a1a2e" }]}>{emi.loanType}</Text>
+            <Text style={[styles.detailLoanId, { color: "#6B7280" }]}>{emi.loanId}</Text>
+          </View>
+          <View style={{ marginTop: 16, gap: 0 }}>
+            {[
+              { label: "EMI Number", value: `${emi.emiNumber} of ${emi.totalEmis}` },
+              { label: "Amount", value: `$ ${emi.amount.toFixed(2)}` },
+              { label: isPaid ? "Paid On" : "Due Date", value: isPaid ? (emi as any).date : (emi as any).dueDate },
+              { label: "Status", value: isPaid ? "Paid" : "Upcoming" },
+            ].map((row, i) => (
+              <View key={i} style={[styles.detailRow, { borderBottomColor: colors.border }]}>
+                <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
+                <Text style={[styles.detailValue, { color: isPaid && row.label === "Status" ? "#10B981" : colors.foreground }]}>
+                  {row.value}
+                </Text>
+              </View>
+            ))}
+          </View>
+          <View style={{ height: 24 }} />
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+function AutoPayModal({ onClose }: { onClose: () => void }) {
+  const colors = useColors();
+  const [enabled, setEnabled] = useState(false);
+  return (
+    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable style={[styles.sheet, { backgroundColor: colors.card }]} onPress={() => {}}>
+          <View style={styles.handle} />
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Set Up AutoPay</Text>
+            <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: colors.muted }]}>
+              <Feather name="x" size={16} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
+          <View style={[styles.autoPayIcon, { backgroundColor: "#EEF2FF" }]}>
+            <Feather name="shield" size={32} color="#4F46E5" />
+          </View>
+          <Text style={[styles.autoPayTitle, { color: colors.foreground }]}>Never Miss a Payment</Text>
+          <Text style={[styles.autoPaySub, { color: colors.mutedForeground }]}>
+            AutoPay automatically deducts your EMI on the due date from your registered bank account — no manual effort required.
+          </Text>
+          <View style={[styles.autoPayFeature, { backgroundColor: colors.accent, borderColor: colors.border }]}>
+            {["Auto-debit on due date", "Protects your credit score", "Free — no extra charges", "Cancel anytime"].map((f, i) => (
+              <View key={i} style={styles.autoPayFeatureRow}>
+                <Feather name="check" size={14} color="#10B981" />
+                <Text style={[styles.autoPayFeatureText, { color: colors.foreground }]}>{f}</Text>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity
+            style={[styles.payActionBtn, { backgroundColor: enabled ? "#10B981" : colors.primary, marginTop: 8 }]}
+            onPress={() => {
+              setEnabled(true);
+              setTimeout(() => {
+                onClose();
+                Alert.alert("AutoPay Enabled!", "Your EMIs will be auto-debited on the due date.");
+              }, 500);
+            }}
+          >
+            <Text style={styles.payActionText}>{enabled ? "AutoPay Enabled ✓" : "Enable AutoPay"}</Text>
+          </TouchableOpacity>
+          <View style={{ height: 16 }} />
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
 
 export default function EmiPaymentsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const topPad = isWeb ? 67 : insets.top;
+  const topPad = isWeb ? 0 : insets.top;
 
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 12, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>EMI Payments</Text>
+  const [activeTab, setActiveTab] = useState<TabId>("due");
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+  const [showAllPaid, setShowAllPaid] = useState(false);
+  const [payingEmi, setPayingEmi] = useState<DueEmi | null>(null);
+  const [detailEmi, setDetailEmi] = useState<typeof PAID_EMIS[0] | typeof UPCOMING_EMIS[0] | null>(null);
+  const [showAutoPay, setShowAutoPay] = useState(false);
+
+  const upcomingVisible = showAllUpcoming ? UPCOMING_EMIS : UPCOMING_EMIS.slice(0, 2);
+  const paidVisible = showAllPaid ? PAID_EMIS : PAID_EMIS.slice(0, 3);
+
+  const tabs: { id: TabId; label: string }[] = [
+    { id: "due", label: "Due EMIs" },
+    { id: "paid", label: "Paid EMIs" },
+    { id: "all", label: "All EMIs" },
+  ];
+
+  const renderDueTab = () => (
+    <>
+      {/* Next EMI Due */}
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Next EMI Due</Text>
+      {DUE_EMIS.map((emi) => (
+        <View key={emi.id} style={[styles.nextEmiCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.nextEmiTop}>
+            <View style={[styles.loanIconCircle, { backgroundColor: emi.iconBg }]}>
+              <Feather name={emi.icon} size={18} color={emi.iconColor} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.nextEmiLoanName, { color: colors.foreground }]}>{emi.loanType}</Text>
+              <Text style={[styles.nextEmiLoanId, { color: colors.mutedForeground }]}>Loan ID: {emi.loanId}</Text>
+            </View>
+            <View style={{ alignItems: "flex-end", marginRight: 10 }}>
+              <Text style={[styles.dueDateLabel, { color: colors.mutedForeground }]}>Due Date</Text>
+              <Text style={[styles.dueDateValue, { color: colors.foreground }]}>{emi.dueDate}</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.payNowBtn, { borderColor: colors.primary }]}
+              onPress={() => setPayingEmi(emi)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.payNowText, { color: colors.primary }]}>Pay Now</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={[styles.emiStatsRow, { borderTopColor: colors.border }]}>
+            {[
+              { label: "EMI Amount", value: `$${emi.amount.toFixed(2)}` },
+              { label: "EMI Number", value: `${emi.emiNumber} of ${emi.totalEmis}` },
+              { label: "Principal", value: `$${emi.principal.toFixed(2)}` },
+              { label: "Interest", value: `$${emi.interest.toFixed(2)}` },
+            ].map((s, i) => (
+              <View key={i} style={[styles.emiStat, i > 0 && { borderLeftWidth: 1, borderLeftColor: colors.border }]}>
+                <Text style={[styles.emiStatLabel, { color: colors.mutedForeground }]}>{s.label}</Text>
+                <Text style={[styles.emiStatValue, { color: colors.foreground }]}>{s.value}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={[styles.infoBanner, { backgroundColor: "#EEF2FF" }]}>
+            <Feather name="calendar" size={14} color="#4F46E5" style={{ marginTop: 1 }} />
+            <Text style={[styles.infoText, { color: "#4F46E5" }]}>
+              Pay before {emi.dueDate} to avoid late fees and maintain your credit score.
+            </Text>
+          </View>
+        </View>
+      ))}
+
+      {/* Upcoming EMIs */}
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Upcoming EMIs</Text>
       </View>
-
-      {/* Summary strip */}
-      <View style={[styles.summaryStrip, { backgroundColor: "#EEF2FF" }]}>
-        <View style={styles.summaryItem}>
-          <Text style={[styles.summaryLabel, { color: "#6B7280" }]}>Next EMI</Text>
-          <Text style={[styles.summaryValue, { color: "#4F46E5" }]}>$250.00</Text>
-          <Text style={[styles.summaryDate, { color: "#6B7280" }]}>May 25, 2024</Text>
-        </View>
-        <View style={[styles.summaryDivider, { backgroundColor: "#C7D2FE" }]} />
-        <View style={styles.summaryItem}>
-          <Text style={[styles.summaryLabel, { color: "#6B7280" }]}>Total Paid</Text>
-          <Text style={[styles.summaryValue, { color: "#10B981" }]}>$4,600.00</Text>
-          <Text style={[styles.summaryDate, { color: "#6B7280" }]}>All loans</Text>
-        </View>
-        <View style={[styles.summaryDivider, { backgroundColor: "#C7D2FE" }]} />
-        <View style={styles.summaryItem}>
-          <Text style={[styles.summaryLabel, { color: "#6B7280" }]}>Upcoming</Text>
-          <Text style={[styles.summaryValue, { color: "#F59E0B" }]}>$250.00</Text>
-          <Text style={[styles.summaryDate, { color: "#6B7280" }]}>This month</Text>
-        </View>
+      <View style={[styles.listCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {upcomingVisible.map((emi, i) => (
+          <View key={emi.id}>
+            <TouchableOpacity style={styles.emiRow} onPress={() => setDetailEmi(emi)} activeOpacity={0.7}>
+              <View style={[styles.emiRowIcon, { backgroundColor: emi.iconBg }]}>
+                <Feather name={emi.icon} size={16} color={emi.iconColor} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.emiRowTitle, { color: colors.foreground }]}>{emi.loanType}</Text>
+                <Text style={[styles.emiRowSub, { color: colors.mutedForeground }]}>EMI {emi.emiNumber} of {emi.totalEmis}</Text>
+              </View>
+              <Text style={[styles.emiRowDate, { color: colors.mutedForeground }]}>{emi.dueDate}</Text>
+              <Text style={[styles.emiRowAmt, { color: colors.foreground }]}>${emi.amount.toFixed(2)}</Text>
+              <Feather name="chevron-right" size={15} color={colors.mutedForeground} style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+            {i < upcomingVisible.length - 1 && <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />}
+          </View>
+        ))}
       </View>
-
-      <TouchableOpacity style={[styles.payNowBtn, { backgroundColor: "#4F46E5" }]}>
-        <Feather name="credit-card" size={16} color="#fff" />
-        <Text style={styles.payNowText}>Pay All EMIs Now</Text>
+      <TouchableOpacity style={styles.viewAllBtn} onPress={() => setShowAllUpcoming(!showAllUpcoming)}>
+        <Text style={[styles.viewAllText, { color: colors.primary }]}>
+          {showAllUpcoming ? "Show less upcoming EMIs" : "View all upcoming EMIs"}{" "}
+          <Feather name={showAllUpcoming ? "chevron-up" : "arrow-right"} size={13} color={colors.primary} />
+        </Text>
       </TouchableOpacity>
 
-      <ScrollView
-        contentContainerStyle={{
-          padding: 16,
-          paddingBottom: isWeb ? 34 + 84 : 100,
-        }}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={[styles.listTitle, { color: colors.foreground }]}>Transaction History</Text>
+      {/* Recent Payments */}
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent Payments</Text>
+      </View>
+      <View style={[styles.listCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {paidVisible.map((emi, i) => (
+          <View key={emi.id}>
+            <TouchableOpacity style={styles.emiRow} onPress={() => setDetailEmi(emi)} activeOpacity={0.7}>
+              <View style={styles.paidCheckCircle}>
+                <Feather name="check-circle" size={22} color="#10B981" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.emiRowTitle, { color: colors.foreground }]}>{emi.loanType}</Text>
+                <Text style={[styles.emiRowSub, { color: colors.mutedForeground }]}>EMI {emi.emiNumber} of {emi.totalEmis}</Text>
+              </View>
+              <Text style={[styles.emiRowDate, { color: colors.mutedForeground }]}>{emi.date}</Text>
+              <Text style={[styles.emiRowAmt, { color: "#10B981" }]}>${emi.amount.toFixed(2)}</Text>
+              <Feather name="chevron-right" size={15} color={colors.mutedForeground} style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+            {i < paidVisible.length - 1 && <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />}
+          </View>
+        ))}
+      </View>
+      <TouchableOpacity style={styles.viewAllBtn} onPress={() => setShowAllPaid(!showAllPaid)}>
+        <Text style={[styles.viewAllText, { color: colors.primary }]}>
+          {showAllPaid ? "Show less payment history" : "View all payment history"}{" "}
+          <Feather name={showAllPaid ? "chevron-up" : "arrow-right"} size={13} color={colors.primary} />
+        </Text>
+      </TouchableOpacity>
 
+      {/* AutoPay banner */}
+      <View style={[styles.autoPayBanner, { backgroundColor: "#4F46E5" }]}>
+        <View style={[styles.autoPayBannerIcon, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
+          <Feather name="shield" size={22} color="#fff" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.autoPayBannerTitle}>Set up AutoPay</Text>
+          <Text style={styles.autoPayBannerSub}>Never miss an EMI payment. Set up AutoPay and stay stress-free.</Text>
+        </View>
+        <TouchableOpacity style={styles.autoPayBannerBtn} onPress={() => setShowAutoPay(true)}>
+          <Text style={styles.autoPayBannerBtnText}>Set Up{"\n"}AutoPay</Text>
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+
+  const renderPaidTab = () => (
+    <>
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Payment History</Text>
+      <View style={[styles.listCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {PAID_EMIS.map((emi, i) => (
+          <View key={emi.id}>
+            <TouchableOpacity style={styles.emiRow} onPress={() => setDetailEmi(emi)} activeOpacity={0.7}>
+              <View style={styles.paidCheckCircle}>
+                <Feather name="check-circle" size={22} color="#10B981" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.emiRowTitle, { color: colors.foreground }]}>{emi.loanType}</Text>
+                <Text style={[styles.emiRowSub, { color: colors.mutedForeground }]}>EMI {emi.emiNumber} of {emi.totalEmis}</Text>
+              </View>
+              <Text style={[styles.emiRowDate, { color: colors.mutedForeground }]}>{emi.date}</Text>
+              <Text style={[styles.emiRowAmt, { color: "#10B981" }]}>${emi.amount.toFixed(2)}</Text>
+              <Feather name="chevron-right" size={15} color={colors.mutedForeground} style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+            {i < PAID_EMIS.length - 1 && <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />}
+          </View>
+        ))}
+      </View>
+    </>
+  );
+
+  const renderAllTab = () => {
+    const allEmis = [
+      ...DUE_EMIS.map((e) => ({ ...e, kind: "due" as const, displayDate: e.dueDate })),
+      ...UPCOMING_EMIS.map((e) => ({ ...e, kind: "upcoming" as const, displayDate: e.dueDate })),
+      ...PAID_EMIS.map((e) => ({ ...e, kind: "paid" as const, displayDate: e.date })),
+    ];
+    return (
+      <>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>All EMIs</Text>
         <View style={[styles.listCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          {PAYMENTS.map((payment, i) => (
-            <View key={payment.id}>
-              <TouchableOpacity style={styles.paymentItem}>
-                <View style={[
-                  styles.paymentIcon,
-                  { backgroundColor: payment.type === "disbursed" ? "#DBEAFE" : "#D1FAE5" },
-                ]}>
-                  {payment.type === "emi" ? (
-                    <Ionicons name="checkmark-circle" size={22} color="#10B981" />
-                  ) : (
-                    <MaterialCommunityIcons name="bank-transfer" size={20} color="#3B82F6" />
-                  )}
+          {allEmis.map((emi, i) => (
+            <View key={emi.id}>
+              <TouchableOpacity
+                style={styles.emiRow}
+                onPress={() => emi.kind === "due" ? setPayingEmi(emi as any) : setDetailEmi(emi as any)}
+                activeOpacity={0.7}
+              >
+                {emi.kind === "paid" ? (
+                  <View style={styles.paidCheckCircle}>
+                    <Feather name="check-circle" size={22} color="#10B981" />
+                  </View>
+                ) : (
+                  <View style={[styles.emiRowIcon, { backgroundColor: emi.iconBg }]}>
+                    <Feather name={emi.icon} size={16} color={emi.iconColor} />
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Text style={[styles.emiRowTitle, { color: colors.foreground }]}>{emi.loanType}</Text>
+                    {emi.kind === "due" && (
+                      <View style={styles.dueBadge}>
+                        <Text style={styles.dueBadgeText}>Due</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={[styles.emiRowSub, { color: colors.mutedForeground }]}>EMI {emi.emiNumber} of {emi.totalEmis}</Text>
                 </View>
-                <View style={styles.paymentInfo}>
-                  <Text style={[styles.paymentTitle, { color: colors.foreground }]}>{payment.title}</Text>
-                  <Text style={[styles.paymentSub, { color: colors.mutedForeground }]}>{payment.subtitle}</Text>
-                </View>
-                <View style={styles.paymentMeta}>
-                  <Text style={[
-                    styles.paymentAmount,
-                    { color: payment.amount > 0 ? "#10B981" : colors.foreground },
-                  ]}>
-                    {payment.amount > 0 ? "+" : "-"}${Math.abs(payment.amount).toFixed(2)}
-                  </Text>
-                  <Text style={[styles.paymentDate, { color: colors.mutedForeground }]}>{payment.date}</Text>
-                </View>
-                <Feather name="chevron-right" size={15} color={colors.mutedForeground} />
+                <Text style={[styles.emiRowDate, { color: colors.mutedForeground }]}>{emi.displayDate}</Text>
+                <Text style={[styles.emiRowAmt, { color: emi.kind === "paid" ? "#10B981" : colors.foreground }]}>
+                  ${emi.amount.toFixed(2)}
+                </Text>
+                <Feather name="chevron-right" size={15} color={colors.mutedForeground} style={{ marginLeft: 4 }} />
               </TouchableOpacity>
-              {i < PAYMENTS.length - 1 && (
-                <View style={[styles.divider, { backgroundColor: colors.border }]} />
-              )}
+              {i < allEmis.length - 1 && <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />}
             </View>
           ))}
         </View>
+      </>
+    );
+  };
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.foreground }]}>EMI Payments</Text>
+        <Text style={[styles.headerSub, { color: colors.mutedForeground }]}>View and manage your EMI payments</Text>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: isWeb ? 100 : 90 }}>
+        {/* Overview card */}
+        <View style={{ padding: 16, paddingBottom: 0 }}>
+          <View style={[styles.overviewCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.overviewTitle, { color: colors.foreground }]}>Payment Overview</Text>
+            <View style={styles.overviewGrid}>
+              {[
+                { label: "Total EMIs", value: "50", icon: "calendar", iconColor: "#4F46E5", iconBg: "#EEF2FF", sub: null },
+                { label: "EMIs Paid", value: "20", icon: "check-circle", iconColor: "#10B981", iconBg: "#D1FAE5", sub: null },
+                { label: "EMIs Pending", value: "1", icon: "clock", iconColor: "#F59E0B", iconBg: "#FEF3C7", sub: "Due Soon" },
+                { label: "Total Amount Paid", value: "$7,550.00", icon: "dollar-sign", iconColor: "#3B82F6", iconBg: "#DBEAFE", sub: null },
+              ].map((s, i) => (
+                <View key={i} style={styles.overviewItem}>
+                  <View style={[styles.ovIconWrap, { backgroundColor: s.iconBg }]}>
+                    <Feather name={s.icon as any} size={16} color={s.iconColor} />
+                  </View>
+                  <Text style={[styles.ovLabel, { color: colors.mutedForeground }]}>{s.label}</Text>
+                  <Text style={[styles.ovValue, { color: colors.foreground }]}>{s.value}</Text>
+                  {s.sub && <Text style={[styles.ovSub, { color: "#F59E0B" }]}>{s.sub}</Text>}
+                </View>
+              ))}
+            </View>
+          </View>
+        </View>
+
+        {/* Tabs */}
+        <View style={[styles.tabRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          {tabs.map((t) => (
+            <TouchableOpacity
+              key={t.id}
+              style={[styles.tab, activeTab === t.id && [styles.tabActive, { borderBottomColor: colors.primary }]]}
+              onPress={() => setActiveTab(t.id)}
+            >
+              <Text style={[styles.tabText, { color: activeTab === t.id ? colors.primary : colors.mutedForeground }]}>
+                {t.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={{ padding: 16, gap: 12 }}>
+          {activeTab === "due" && renderDueTab()}
+          {activeTab === "paid" && renderPaidTab()}
+          {activeTab === "all" && renderAllTab()}
+        </View>
       </ScrollView>
+
+      {payingEmi && (
+        <PaymentModal
+          emi={payingEmi}
+          onClose={() => setPayingEmi(null)}
+          onSuccess={() => {}}
+        />
+      )}
+      {detailEmi && (
+        <EmiDetailModal emi={detailEmi} onClose={() => setDetailEmi(null)} />
+      )}
+      {showAutoPay && (
+        <AutoPayModal onClose={() => setShowAutoPay(false)} />
+      )}
     </View>
   );
 }
@@ -113,39 +599,95 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingHorizontal: 20, paddingBottom: 14, borderBottomWidth: 1 },
   headerTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
-  summaryStrip: {
-    flexDirection: "row",
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-  },
-  summaryItem: { flex: 1, alignItems: "center" },
-  summaryLabel: { fontSize: 11, fontFamily: "Inter_400Regular", marginBottom: 3 },
-  summaryValue: { fontSize: 16, fontFamily: "Inter_700Bold", marginBottom: 2 },
-  summaryDate: { fontSize: 10, fontFamily: "Inter_400Regular" },
-  summaryDivider: { width: 1, marginHorizontal: 4 },
-  payNowBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginHorizontal: 16,
-    borderRadius: 12,
-    paddingVertical: 12,
-    marginBottom: 4,
-  },
-  payNowText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  listTitle: { fontSize: 15, fontFamily: "Inter_700Bold", marginBottom: 12 },
+  headerSub: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  overviewCard: { borderRadius: 14, borderWidth: 1, padding: 16, marginBottom: 4 },
+  overviewTitle: { fontSize: 14, fontFamily: "Inter_700Bold", marginBottom: 14 },
+  overviewGrid: { flexDirection: "row", justifyContent: "space-between" },
+  overviewItem: { alignItems: "center", flex: 1 },
+  ovIconWrap: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", marginBottom: 6 },
+  ovLabel: { fontSize: 10, fontFamily: "Inter_400Regular", textAlign: "center", marginBottom: 3 },
+  ovValue: { fontSize: 13, fontFamily: "Inter_700Bold", textAlign: "center" },
+  ovSub: { fontSize: 10, fontFamily: "Inter_600SemiBold", marginTop: 2 },
+  tabRow: { flexDirection: "row", borderBottomWidth: 1, paddingHorizontal: 16 },
+  tab: { flex: 1, paddingVertical: 12, alignItems: "center", borderBottomWidth: 2, borderBottomColor: "transparent" },
+  tabActive: {},
+  tabText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  sectionTitle: { fontSize: 15, fontFamily: "Inter_700Bold", marginBottom: 10, marginTop: 4 },
+  nextEmiCard: { borderRadius: 14, borderWidth: 1, marginBottom: 4, overflow: "hidden" },
+  nextEmiTop: { flexDirection: "row", alignItems: "center", padding: 14, gap: 10 },
+  loanIconCircle: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  nextEmiLoanName: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  nextEmiLoanId: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+  dueDateLabel: { fontSize: 10, fontFamily: "Inter_400Regular", marginBottom: 2 },
+  dueDateValue: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  payNowBtn: { borderWidth: 1.5, borderRadius: 8, paddingVertical: 7, paddingHorizontal: 14 },
+  payNowText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  emiStatsRow: { flexDirection: "row", borderTopWidth: 1, paddingVertical: 12 },
+  emiStat: { flex: 1, alignItems: "center" },
+  emiStatLabel: { fontSize: 10, fontFamily: "Inter_400Regular", marginBottom: 3 },
+  emiStatValue: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  infoBanner: { flexDirection: "row", padding: 12, gap: 8, alignItems: "flex-start" },
+  infoText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
   listCard: { borderRadius: 14, borderWidth: 1, overflow: "hidden" },
-  paymentItem: { flexDirection: "row", alignItems: "center", padding: 14, gap: 10 },
-  paymentIcon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  paymentInfo: { flex: 1 },
-  paymentTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginBottom: 2 },
-  paymentSub: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  paymentMeta: { alignItems: "flex-end", marginRight: 6 },
-  paymentAmount: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginBottom: 2 },
-  paymentDate: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  divider: { height: 1, marginLeft: 64 },
+  emiRow: { flexDirection: "row", alignItems: "center", padding: 14, gap: 10 },
+  emiRowIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  emiRowTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginBottom: 1 },
+  emiRowSub: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  emiRowDate: { fontSize: 12, fontFamily: "Inter_400Regular", marginRight: 6 },
+  emiRowAmt: { fontSize: 13, fontFamily: "Inter_700Bold" },
+  rowDivider: { height: 1, marginLeft: 60 },
+  paidCheckCircle: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  viewAllBtn: { alignItems: "center", paddingVertical: 12 },
+  viewAllText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  dueBadge: { backgroundColor: "#FEF3C7", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1 },
+  dueBadgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold", color: "#D97706" },
+  autoPayBanner: { borderRadius: 14, padding: 16, flexDirection: "row", alignItems: "center", gap: 12, marginTop: 4 },
+  autoPayBannerIcon: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  autoPayBannerTitle: { color: "#fff", fontSize: 13, fontFamily: "Inter_700Bold", marginBottom: 2 },
+  autoPayBannerSub: { color: "rgba(255,255,255,0.8)", fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16 },
+  autoPayBannerBtn: { backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, alignItems: "center" },
+  autoPayBannerBtnText: { color: "#fff", fontSize: 11, fontFamily: "Inter_700Bold", textAlign: "center" },
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: "85%" },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#E5E7EB", alignSelf: "center", marginBottom: 16 },
+  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
+  modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  closeBtn: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  paymentSummary: { borderRadius: 12, borderWidth: 1, padding: 14, flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 18 },
+  summaryLoanName: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 3 },
+  summaryLoanId: { fontSize: 11, fontFamily: "Inter_400Regular", marginBottom: 2 },
+  summaryDueDate: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  summaryAmount: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  sectionSmall: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginBottom: 10 },
+  methodRow: { flexDirection: "row", alignItems: "center", borderWidth: 1.5, borderRadius: 10, padding: 12, gap: 12 },
+  methodIconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  methodLabel: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium" },
+  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  radioDot: { width: 10, height: 10, borderRadius: 5 },
+  payActionBtn: { borderRadius: 12, paddingVertical: 14, alignItems: "center" },
+  payActionText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  disclaimer: { textAlign: "center", fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 10 },
+  successWrap: { alignItems: "center", paddingVertical: 10 },
+  successIconWrap: { marginBottom: 14 },
+  successTitle: { fontSize: 22, fontFamily: "Inter_700Bold", marginBottom: 8 },
+  successSub: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 24, marginBottom: 20 },
+  txnCard: { borderRadius: 12, borderWidth: 1, padding: 14, width: "100%", alignItems: "center", marginBottom: 24, gap: 4 },
+  txnLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  txnValue: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  doneBtn: { borderRadius: 12, paddingVertical: 14, paddingHorizontal: 48, alignItems: "center" },
+  doneBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  detailHeaderCard: { borderRadius: 14, padding: 20, alignItems: "center", gap: 6 },
+  detailIconCircle: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  detailLoanName: { fontSize: 17, fontFamily: "Inter_700Bold" },
+  detailLoanId: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  detailRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 12, borderBottomWidth: 1 },
+  detailLabel: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  detailValue: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  autoPayIcon: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", alignSelf: "center", marginBottom: 14 },
+  autoPayTitle: { fontSize: 20, fontFamily: "Inter_700Bold", textAlign: "center", marginBottom: 8 },
+  autoPaySub: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22, marginBottom: 20 },
+  autoPayFeature: { borderRadius: 12, borderWidth: 1, padding: 16, width: "100%", gap: 10, marginBottom: 20 },
+  autoPayFeatureRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  autoPayFeatureText: { fontSize: 13, fontFamily: "Inter_500Medium" },
 });
