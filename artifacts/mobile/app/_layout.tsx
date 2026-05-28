@@ -18,6 +18,7 @@ function RootLayoutNav() {
       <Stack.Screen name="all-offers"   options={{ headerShown: false, animation: "slide_from_right" }} />
       <Stack.Screen name="apply-loan"   options={{ headerShown: false, animation: "slide_from_right" }} />
       <Stack.Screen name="loan-detail"  options={{ headerShown: false, animation: "slide_from_right" }} />
+      <Stack.Screen name="kyc-info"     options={{ headerShown: false, animation: "slide_from_right" }} />
     </Stack>
   );
 }

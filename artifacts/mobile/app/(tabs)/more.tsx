@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
@@ -805,7 +806,7 @@ export default function MoreScreen() {
       title: "Manage",
       items: [
         { key: "personal" as ModalKey,    icon: "user",         label: "Personal Information",  sub: "View and update your personal details",         badge: null },
-        { key: "kyc" as ModalKey,         icon: "file-text",    label: "KYC Information",       sub: "View your KYC status and documents",             badge: "Verified" },
+        { key: "kyc" as ModalKey,         icon: "file-text",    label: "KYC Information",       sub: "View your KYC status and documents",             badge: "Pending" },
         { key: "alerts" as ModalKey,      icon: "bell",         label: "Alerts & Preferences",  sub: "Manage notifications and communication preferences", badge: null },
         { key: "security" as ModalKey,    icon: "lock",         label: "Security",              sub: "Manage login, PIN and security settings",         badge: null },
         { key: "help" as ModalKey,        icon: "help-circle",  label: "Help & Support",        sub: "Get help, view FAQs or raise a request",         badge: null },
@@ -850,7 +851,7 @@ export default function MoreScreen() {
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {section.items.map((item, i) => (
                 <View key={item.label}>
-                  <TouchableOpacity style={styles.row} onPress={() => open(item.key)} activeOpacity={0.7}>
+                  <TouchableOpacity style={styles.row} onPress={() => item.key === "kyc" ? router.push("/kyc-info") : open(item.key)} activeOpacity={0.7}>
                     <View style={[styles.iconWrap, { backgroundColor: "#EEF2FF" }]}>
                       <Feather name={item.icon as any} size={18} color="#4F46E5" />
                     </View>
@@ -859,9 +860,17 @@ export default function MoreScreen() {
                       <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>{item.sub}</Text>
                     </View>
                     {item.badge && (
-                      <View style={[styles.verifiedBadge, { backgroundColor: "#D1FAE5" }]}>
-                        <Feather name="check-circle" size={11} color="#10B981" />
-                        <Text style={styles.verifiedText}>{item.badge}</Text>
+                      <View style={[styles.verifiedBadge, {
+                        backgroundColor: item.badge === "Verified" ? "#D1FAE5" : "#FEF3C7",
+                      }]}>
+                        <Feather
+                          name={item.badge === "Verified" ? "check-circle" : "clock"}
+                          size={11}
+                          color={item.badge === "Verified" ? "#10B981" : "#D97706"}
+                        />
+                        <Text style={[styles.verifiedText, { color: item.badge === "Verified" ? "#10B981" : "#D97706" }]}>
+                          {item.badge}
+                        </Text>
                       </View>
                     )}
                     <Feather name="chevron-right" size={16} color={colors.mutedForeground} style={{ marginLeft: 6 }} />
