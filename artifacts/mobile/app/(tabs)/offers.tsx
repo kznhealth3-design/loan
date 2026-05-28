@@ -499,7 +499,7 @@ export default function OffersScreen() {
                   </Text>
                   <TouchableOpacity
                     style={[styles.applyBtn, { borderColor: colors.border }]}
-                    onPress={() => setApplyOffer(offer)}
+                    onPress={() => router.push(`/apply-loan?bank=${encodeURIComponent(offer.bank)}&loanType=${encodeURIComponent(offer.type)}&category=personal&rate=${encodeURIComponent(offer.rate)}&maxAmount=${encodeURIComponent(offer.maxAmount)}&processingFee=${encodeURIComponent(offer.processingFee)}`)}
                     activeOpacity={0.8}
                   >
                     <Text style={[styles.applyBtnText, { color: colors.foreground }]}>Apply Now</Text>

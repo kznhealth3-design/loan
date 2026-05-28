@@ -474,8 +474,13 @@ export default function AllOffersScreen() {
   const [category, setCategory] = useState<Category>("all");
   const [sort,     setSort]     = useState<SortOption>("recommended");
   const [showSort, setShowSort] = useState(false);
-  const [applyOffer,  setApplyOffer]  = useState<Offer | null>(null);
   const [detailOffer, setDetailOffer] = useState<Offer | null>(null);
+
+  const navigateApply = (offer: Offer) => {
+    router.push(
+      `/apply-loan?bank=${encodeURIComponent(offer.bank)}&loanType=${encodeURIComponent(offer.type)}&category=${offer.category}&rate=${encodeURIComponent(offer.rate)}&maxAmount=${encodeURIComponent(offer.maxAmount)}&processingFee=${encodeURIComponent(offer.processingFee)}`
+    );
+  };
 
   const filtered = useMemo(() => {
     let list = ALL_OFFERS;
@@ -606,7 +611,7 @@ export default function AllOffersScreen() {
                     <Text style={[s.tagText, { color: offer.tagColor }]}>{offer.tag}</Text>
                   </View>
                   <Text style={[s.maxAmt, { color: offer.initialBg }]}>Get up to {offer.maxAmount}</Text>
-                  <TouchableOpacity style={[s.applyBtn, { borderColor: colors.border }]} onPress={() => setApplyOffer(offer)}>
+                  <TouchableOpacity style={[s.applyBtn, { borderColor: colors.border }]} onPress={() => navigateApply(offer)}>
                     <Text style={[s.applyBtnText, { color: colors.foreground }]}>Apply Now</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={s.viewDetailsRow} onPress={() => setDetailOffer(offer)}>
@@ -664,10 +669,13 @@ export default function AllOffersScreen() {
         </View>
       </ScrollView>
 
-      {showSort   && <SortModal current={sort} onSelect={setSort} onClose={() => setShowSort(false)} />}
-      {applyOffer && <ApplyModal offer={applyOffer} onClose={() => setApplyOffer(null)} />}
+      {showSort && <SortModal current={sort} onSelect={setSort} onClose={() => setShowSort(false)} />}
       {detailOffer && (
-        <DetailsModal offer={detailOffer} onApply={() => setApplyOffer(detailOffer)} onClose={() => setDetailOffer(null)} />
+        <DetailsModal
+          offer={detailOffer}
+          onApply={() => { setDetailOffer(null); navigateApply(detailOffer); }}
+          onClose={() => setDetailOffer(null)}
+        />
       )}
     </View>
   );
