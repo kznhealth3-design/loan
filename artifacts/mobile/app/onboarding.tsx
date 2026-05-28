@@ -389,7 +389,7 @@ export default function Onboarding() {
     if (idx >= 0 && idx < 4) setCurrent(idx);
   };
 
-  const goToApp = () => router.replace("/(tabs)");
+  const goToApp = () => router.push("/register");
   const isLast = current === 3;
 
   const SLIDES = [
