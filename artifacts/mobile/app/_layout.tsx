@@ -11,6 +11,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/lib/auth";
 import { queryClient } from "@/lib/queryClient";
+import { initApiClient } from "@/lib/api-init";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -44,6 +45,7 @@ export default function RootLayout() {
   );
 
   useEffect(() => {
+    initApiClient();
     SplashScreen.hideAsync();
   }, []);
 

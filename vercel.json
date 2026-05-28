@@ -1,23 +1,14 @@
 {
   "version": 2,
   "name": "loango-frontend",
-  "builds": [
-    {
-      "src": "artifacts/mobile/scripts/build.js",
-      "use": "@vercel/static",
-      "config": {
-        "distDir": "artifacts/mobile/dist"
-      }
-    }
-  ],
+  "buildCommand": "cd artifacts/mobile && node scripts/build.js",
+  "outputDirectory": "artifacts/mobile/dist",
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/artifacts/mobile/dist/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/artifacts/mobile/dist/index.html"
-    }
+    { "src": "/_expo/static/(.*)", "dest": "/_expo/static/$1" },
+    { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/favicon.ico", "dest": "/favicon.ico" },
+    { "src": "/robots.txt", "dest": "/robots.txt" },
+    { "src": "/sitemap.xml", "dest": "/sitemap.xml" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
