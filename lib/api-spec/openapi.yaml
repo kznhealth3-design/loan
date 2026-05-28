@@ -3,34 +3,560 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: LoanGo API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: Auth
+    description: Browser and mobile authentication endpoints.
+  - name: Profile
+    description: User profile management
+  - name: Offers
+    description: Loan offer catalog
+  - name: Applications
+    description: Loan applications
+  - name: Loans
+    description: Active loans and EMI schedule
+  - name: Payments
+    description: EMI payments via Stripe
+  - name: Notifications
+    description: User notifications
+  - name: KYC
+    description: KYC document upload and verification
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
           content:
             application/json:
+              schema: { $ref: "#/components/schemas/HealthStatus" }
+
+  /auth/user:
+    get:
+      tags: [Auth]
+      operationId: getCurrentAuthUser
+      summary: Get the currently authenticated user
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: Auth status resolved successfully.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthUserEnvelope' }
+  /login:
+    get:
+      tags: [Auth]
+      operationId: beginBrowserLogin
+      summary: Start the browser OIDC login flow
+      parameters:
+        - name: returnTo
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '302': { description: Redirect to OIDC authorization endpoint. }
+  /callback:
+    get:
+      tags: [Auth]
+      operationId: handleBrowserLoginCallback
+      summary: Complete the browser OIDC login flow
+      parameters:
+        - { name: code, in: query, required: false, schema: { type: string } }
+        - { name: state, in: query, required: false, schema: { type: string } }
+        - { name: iss, in: query, required: false, schema: { type: string, format: uri } }
+      responses:
+        '302': { description: Redirect to returnTo path. }
+  /logout:
+    get:
+      tags: [Auth]
+      operationId: logoutBrowserSession
+      summary: Clear the session and begin OIDC logout
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '302': { description: Redirect to OIDC provider logout URL. }
+  /mobile-auth/token-exchange:
+    post:
+      tags: [Auth]
+      operationId: exchangeMobileAuthorizationCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MobileTokenExchangeRequest' }
+      responses:
+        '200':
+          description: Session created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MobileTokenExchangeSuccess' }
+        '400': { $ref: '#/components/responses/ErrorResponse' }
+        '401': { $ref: '#/components/responses/ErrorResponse' }
+        '500': { $ref: '#/components/responses/ErrorResponse' }
+  /mobile-auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logoutMobileSession
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+      responses:
+        '200':
+          description: Logout processed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LogoutSuccess' }
+
+  /me/profile:
+    get:
+      tags: [Profile]
+      operationId: getMyProfile
+      summary: Get current user's full profile
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProfile' }
+        '401': { $ref: '#/components/responses/ErrorResponse' }
+    put:
+      tags: [Profile]
+      operationId: updateMyProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProfileUpdate' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProfile' }
+        '400': { $ref: '#/components/responses/ErrorResponse' }
+        '401': { $ref: '#/components/responses/ErrorResponse' }
+
+  /loan-offers:
+    get:
+      tags: [Offers]
+      operationId: listLoanOffers
+      summary: List all active loan offers
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
               schema:
-                $ref: "#/components/schemas/HealthStatus"
+                type: array
+                items: { $ref: '#/components/schemas/LoanOffer' }
+  /loan-offers/{id}:
+    get:
+      tags: [Offers]
+      operationId: getLoanOffer
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoanOffer' }
+        '404': { $ref: '#/components/responses/ErrorResponse' }
+
+  /loan-applications:
+    get:
+      tags: [Applications]
+      operationId: listMyLoanApplications
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LoanApplication' }
+        '401': { $ref: '#/components/responses/ErrorResponse' }
+    post:
+      tags: [Applications]
+      operationId: createLoanApplication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoanApplicationInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoanApplication' }
+        '400': { $ref: '#/components/responses/ErrorResponse' }
+        '401': { $ref: '#/components/responses/ErrorResponse' }
+  /loan-applications/{id}:
+    get:
+      tags: [Applications]
+      operationId: getLoanApplication
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoanApplication' }
+        '404': { $ref: '#/components/responses/ErrorResponse' }
+
+  /loans:
+    get:
+      tags: [Loans]
+      operationId: listMyLoans
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Loan' }
+        '401': { $ref: '#/components/responses/ErrorResponse' }
+  /loans/{id}:
+    get:
+      tags: [Loans]
+      operationId: getLoanDetail
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoanDetail' }
+        '404': { $ref: '#/components/responses/ErrorResponse' }
+
+  /emis/{id}/checkout-session:
+    post:
+      tags: [Payments]
+      operationId: createEmiCheckoutSession
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckoutSession' }
+        '404': { $ref: '#/components/responses/ErrorResponse' }
+        '401': { $ref: '#/components/responses/ErrorResponse' }
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      operationId: listMyNotifications
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Notification' }
+        '401': { $ref: '#/components/responses/ErrorResponse' }
+  /notifications/{id}/read:
+    post:
+      tags: [Notifications]
+      operationId: markNotificationRead
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Notification' }
+        '404': { $ref: '#/components/responses/ErrorResponse' }
+
+  /kyc/documents:
+    get:
+      tags: [KYC]
+      operationId: listMyKycDocuments
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/KycDocument' }
+        '401': { $ref: '#/components/responses/ErrorResponse' }
+    post:
+      tags: [KYC]
+      operationId: recordKycDocument
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KycDocumentInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KycDocument' }
+        '400': { $ref: '#/components/responses/ErrorResponse' }
+        '401': { $ref: '#/components/responses/ErrorResponse' }
+  /kyc/upload-url:
+    post:
+      tags: [KYC]
+      operationId: createKycUploadUrl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KycUploadRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KycUploadResponse' }
+        '400': { $ref: '#/components/responses/ErrorResponse' }
+        '401': { $ref: '#/components/responses/ErrorResponse' }
+
 components:
+  parameters:
+    AuthorizationSessionHeader:
+      name: Authorization
+      in: header
+      required: false
+      schema: { type: string }
+    SessionCookie:
+      name: sid
+      in: cookie
+      required: false
+      schema: { type: string }
+  responses:
+    ErrorResponse:
+      description: Error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
-        status:
-          type: string
-      required:
-        - status
+        status: { type: string }
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
 
+    AuthUser:
+      type: object
+      required: [id, email, firstName, lastName, profileImageUrl]
+      properties:
+        id: { type: string }
+        email: { type: [string, 'null'], format: email }
+        firstName: { type: [string, 'null'] }
+        lastName: { type: [string, 'null'] }
+        profileImageUrl: { type: [string, 'null'] }
+    AuthUserEnvelope:
+      type: object
+      required: [user]
+      properties:
+        user:
+          oneOf:
+            - $ref: '#/components/schemas/AuthUser'
+            - type: 'null'
+    MobileTokenExchangeRequest:
+      type: object
+      required: [code, code_verifier, redirect_uri, state]
+      properties:
+        code: { type: string, minLength: 1 }
+        code_verifier: { type: string, minLength: 1 }
+        redirect_uri: { type: string, minLength: 1, format: uri }
+        state: { type: string, minLength: 1 }
+        nonce: { type: string, minLength: 1 }
+    MobileTokenExchangeSuccess:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string }
+    LogoutSuccess:
+      type: object
+      required: [success]
+      properties:
+        success: { type: boolean, const: true }
+
+    UserProfile:
+      type: object
+      required: [userId, acceptedTerms, acceptedPrivacy, kycCompleted]
+      properties:
+        userId: { type: string }
+        phone: { type: [string, 'null'] }
+        dob: { type: [string, 'null'] }
+        pan: { type: [string, 'null'] }
+        employmentType: { type: [string, 'null'] }
+        monthlyIncome: { type: [number, 'null'] }
+        companyName: { type: [string, 'null'] }
+        workExperienceMonths: { type: [integer, 'null'] }
+        addressLine: { type: [string, 'null'] }
+        city: { type: [string, 'null'] }
+        state: { type: [string, 'null'] }
+        pincode: { type: [string, 'null'] }
+        acceptedTerms: { type: boolean }
+        acceptedPrivacy: { type: boolean }
+        kycCompleted: { type: boolean }
+    ProfileUpdate:
+      type: object
+      properties:
+        phone: { type: string }
+        dob: { type: string }
+        pan: { type: string }
+        employmentType: { type: string }
+        monthlyIncome: { type: number, minimum: 0 }
+        companyName: { type: string }
+        workExperienceMonths: { type: integer, minimum: 0 }
+        addressLine: { type: string }
+        city: { type: string }
+        state: { type: string }
+        pincode: { type: string }
+        acceptedTerms: { type: boolean }
+        acceptedPrivacy: { type: boolean }
+
+    LoanOffer:
+      type: object
+      required: [id, lender, productName, loanType, minAmount, maxAmount, interestMin, interestMax, tenureMinMonths, tenureMaxMonths, processingFeePct, rating, featured]
+      properties:
+        id: { type: string }
+        lender: { type: string }
+        productName: { type: string }
+        loanType: { type: string }
+        description: { type: [string, 'null'] }
+        minAmount: { type: number }
+        maxAmount: { type: number }
+        interestMin: { type: number }
+        interestMax: { type: number }
+        tenureMinMonths: { type: integer }
+        tenureMaxMonths: { type: integer }
+        processingFeePct: { type: number }
+        rating: { type: number }
+        featured: { type: boolean }
+
+    LoanApplication:
+      type: object
+      required: [id, userId, offerId, amount, tenureMonths, purpose, status, createdAt]
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        offerId: { type: string }
+        amount: { type: number }
+        tenureMonths: { type: integer }
+        purpose: { type: string }
+        status: { type: string, enum: [submitted, under_review, approved, rejected, disbursed] }
+        rejectionReason: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+    LoanApplicationInput:
+      type: object
+      required: [offerId, amount, tenureMonths, purpose]
+      properties:
+        offerId: { type: string, minLength: 1 }
+        amount: { type: number, minimum: 1 }
+        tenureMonths: { type: integer, minimum: 1 }
+        purpose: { type: string, minLength: 1 }
+
+    Loan:
+      type: object
+      required: [id, applicationId, userId, principal, interestRate, tenureMonths, emiAmount, totalPayable, amountPaid, status, disbursedAt]
+      properties:
+        id: { type: string }
+        applicationId: { type: string }
+        userId: { type: string }
+        principal: { type: number }
+        interestRate: { type: number }
+        tenureMonths: { type: integer }
+        emiAmount: { type: number }
+        totalPayable: { type: number }
+        amountPaid: { type: number }
+        status: { type: string, enum: [active, closed, defaulted] }
+        disbursedAt: { type: string, format: date-time }
+        nextDueDate: { type: [string, 'null'], format: date-time }
+    EmiPayment:
+      type: object
+      required: [id, loanId, installmentNumber, dueDate, amount, status]
+      properties:
+        id: { type: string }
+        loanId: { type: string }
+        installmentNumber: { type: integer }
+        dueDate: { type: string, format: date-time }
+        amount: { type: number }
+        status: { type: string, enum: [pending, paid, overdue] }
+        paidAt: { type: [string, 'null'], format: date-time }
+    LoanDetail:
+      type: object
+      required: [loan, emis]
+      properties:
+        loan: { $ref: '#/components/schemas/Loan' }
+        emis:
+          type: array
+          items: { $ref: '#/components/schemas/EmiPayment' }
+
+    CheckoutSession:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string, format: uri }
+        sessionId: { type: string }
+
+    Notification:
+      type: object
+      required: [id, userId, type, title, body, read, createdAt]
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        type: { type: string }
+        title: { type: string }
+        body: { type: string }
+        read: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    KycDocument:
+      type: object
+      required: [id, userId, docType, objectKey, status, uploadedAt]
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        docType: { type: string }
+        objectKey: { type: string }
+        status: { type: string, enum: [pending, approved, rejected] }
+        uploadedAt: { type: string, format: date-time }
+    KycDocumentInput:
+      type: object
+      required: [docType, objectKey]
+      properties:
+        docType: { type: string, minLength: 1 }
+        objectKey: { type: string, minLength: 1 }
+    KycUploadRequest:
+      type: object
+      required: [docType, contentType]
+      properties:
+        docType: { type: string, minLength: 1 }
+        contentType: { type: string, minLength: 1 }
+    KycUploadResponse:
+      type: object
+      required: [uploadUrl, objectKey]
+      properties:
+        uploadUrl: { type: string, format: uri }
+        objectKey: { type: string }

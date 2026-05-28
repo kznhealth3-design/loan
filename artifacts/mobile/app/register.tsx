@@ -473,10 +473,16 @@ export default function Register() {
 
   const handleCreate = () => {
     if (!canSubmit) return;
+    // Account creation is delegated to Replit Auth (OIDC). Redirect into the
+    // login flow; user lands back at /mobile/ post-callback.
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.location.href = `/api/login?returnTo=${encodeURIComponent("/")}`;
+      return;
+    }
     Alert.alert(
-      "Account Created! 🎉",
-      "Welcome to LoanGo! Your account has been created successfully.",
-      [{ text: "Get Started", onPress: () => router.replace("/(tabs)") }]
+      "Sign In Required",
+      "Account creation happens via secure sign-in.",
+      [{ text: "OK", onPress: () => router.replace("/login") }]
     );
   };
 

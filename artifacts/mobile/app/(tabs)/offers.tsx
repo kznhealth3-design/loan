@@ -16,8 +16,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
+import { useListLoanOffers } from "@workspace/api-client-react";
+import { mapOffer, type DisplayOffer } from "@/lib/offerAdapter";
 
-const OFFERS = [
+const _LEGACY_OFFERS_REMOVED = [
   {
     id: "1",
     bank: "Finstar Bank",
@@ -96,7 +98,8 @@ const OFFERS = [
   },
 ];
 
-type Offer = typeof OFFERS[0];
+type Offer = DisplayOffer;
+void _LEGACY_OFFERS_REMOVED;
 
 function EligibilityModal({ onClose }: { onClose: () => void }) {
   const colors = useColors();
@@ -406,7 +409,12 @@ export default function OffersScreen() {
   const [showEligibility, setShowEligibility] = useState(false);
   const [applyOffer, setApplyOffer] = useState<Offer | null>(null);
 
-  const visibleOffers = showAll ? OFFERS : OFFERS.slice(0, 3);
+  const offersQuery = useListLoanOffers();
+  const allOffers: Offer[] = React.useMemo(
+    () => (offersQuery.data ?? []).map(mapOffer),
+    [offersQuery.data],
+  );
+  const visibleOffers = showAll ? allOffers : allOffers.slice(0, 3);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -499,7 +507,7 @@ export default function OffersScreen() {
                   </Text>
                   <TouchableOpacity
                     style={[styles.applyBtn, { borderColor: colors.border }]}
-                    onPress={() => router.push(`/apply-loan?bank=${encodeURIComponent(offer.bank)}&loanType=${encodeURIComponent(offer.type)}&category=personal&rate=${encodeURIComponent(offer.rate)}&maxAmount=${encodeURIComponent(offer.maxAmount)}&processingFee=${encodeURIComponent(offer.processingFee)}`)}
+                    onPress={() => router.push(`/apply-loan?offerId=${encodeURIComponent(offer.id)}&bank=${encodeURIComponent(offer.bank)}&loanType=${encodeURIComponent(offer.type)}&category=${offer.category}&rate=${encodeURIComponent(offer.rate)}&maxAmount=${encodeURIComponent(offer.maxAmount)}&processingFee=${encodeURIComponent(offer.processingFee)}`)}
                     activeOpacity={0.8}
                   >
                     <Text style={[styles.applyBtnText, { color: colors.foreground }]}>Apply Now</Text>

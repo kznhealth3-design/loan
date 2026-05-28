@@ -14,7 +14,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useQueryClient } from "@tanstack/react-query";
+
 import { useColors } from "@/hooks/useColors";
+import {
+  useCreateLoanApplication,
+  getListMyLoansQueryKey,
+  getListMyLoanApplicationsQueryKey,
+} from "@workspace/api-client-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type EmpType = "salaried" | "self_employed" | "business_owner" | "retired";
@@ -334,7 +341,7 @@ function SuccessScreen({ loanType, bank }: { loanType: string; bank: string }) {
             </View>
           ))}
         </View>
-        <TouchableOpacity style={[ss.btn, { backgroundColor: "#4F46E5" }]} onPress={() => router.replace("/(tabs)/")}>
+        <TouchableOpacity style={[ss.btn, { backgroundColor: "#4F46E5" }]} onPress={() => router.replace("/(tabs)")}>
           <Text style={ss.btnText}>Back to Dashboard</Text>
         </TouchableOpacity>
         <TouchableOpacity style={{ marginTop: 12 }} onPress={() => router.replace("/(tabs)/my-loans")}>
@@ -374,6 +381,7 @@ export default function ApplyLoanScreen() {
   const topPad = isWeb ? 0 : insets.top;
 
   const params = useLocalSearchParams<{
+    offerId?: string;
     bank: string; loanType: string; category: string;
     rate: string; maxAmount: string; processingFee: string;
   }>();
@@ -384,9 +392,23 @@ export default function ApplyLoanScreen() {
   const rate = params.rate || "8.49% p.a. onwards";
   const maxAmount = params.maxAmount || "$50,000";
   const processingFee = params.processingFee || "1.00% onwards";
+  const offerId = typeof params.offerId === "string" ? params.offerId : "";
 
   const [step, setStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
+  const qc = useQueryClient();
+  const createApp = useCreateLoanApplication({
+    mutation: {
+      onSuccess: () => {
+        // Apps are auto-disbursed server-side, so a successful POST creates a
+        // new Loan. Invalidate both lists so My Loans reflects the change.
+        qc.invalidateQueries({ queryKey: getListMyLoansQueryKey() });
+        qc.invalidateQueries({ queryKey: getListMyLoanApplicationsQueryKey() });
+        setSubmitted(true);
+      },
+      onError: (err) => alert(err.message || "Could not submit application"),
+    },
+  });
 
   // Step 1
   const [s1, setS1] = useState<Step1Data>({
@@ -456,7 +478,24 @@ export default function ApplyLoanScreen() {
     return true;
   };
 
-  const next = () => { if (validate()) { if (step < 5) setStep(step + 1); else setSubmitted(true); } };
+  const submitApplication = () => {
+    if (!offerId) { alert("Missing offer reference. Please go back and pick an offer."); return; }
+    const amt = parseFloat(s3.amount);
+    if (!Number.isFinite(amt) || amt <= 0) { alert("Enter a valid loan amount"); return; }
+    createApp.mutate({
+      data: {
+        offerId,
+        amount: amt,
+        tenureMonths: s3.tenure,
+        purpose: (s1.purpose || loanType || "loan").toString(),
+      },
+    });
+  };
+  const next = () => {
+    if (!validate()) return;
+    if (step < 5) setStep(step + 1);
+    else submitApplication();
+  };
   const back = () => { if (step > 1) setStep(step - 1); else router.back(); };
 
   if (submitted) {

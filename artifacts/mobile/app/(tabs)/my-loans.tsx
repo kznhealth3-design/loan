@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
+// React.useMemo is referenced below via the default React import.
 import {
   Alert,
   Modal,
@@ -15,8 +16,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
+import { useListMyLoans } from "@workspace/api-client-react";
+import { mapLoan, type DisplayLoan } from "@/lib/loanAdapter";
 
-const ACTIVE_LOANS = [
+const _LEGACY_ACTIVE_LOANS_REMOVED = [
   {
     id: "1",
     type: "Home Loan",
@@ -67,7 +70,7 @@ const ACTIVE_LOANS = [
   },
 ];
 
-const CLOSED_LOANS = [
+const _LEGACY_CLOSED_LOANS_REMOVED = [
   {
     id: "3",
     type: "Car Loan",
@@ -94,7 +97,9 @@ const CLOSED_LOANS = [
   },
 ];
 
-type Loan = typeof ACTIVE_LOANS[0];
+type Loan = DisplayLoan;
+void _LEGACY_ACTIVE_LOANS_REMOVED;
+void _LEGACY_CLOSED_LOANS_REMOVED;
 
 function OverviewCard() {
   const colors = useColors();
@@ -367,7 +372,14 @@ export default function MyLoansScreen() {
   const [detailsLoan, setDetailsLoan] = useState<Loan | null>(null);
   const [payLoan, setPayLoan] = useState<Loan | null>(null);
 
-  const loans = activeTab === "active" ? ACTIVE_LOANS : CLOSED_LOANS;
+  const loansQuery = useListMyLoans();
+  const all = React.useMemo(
+    () => (loansQuery.data ?? []).map(mapLoan),
+    [loansQuery.data],
+  );
+  const activeAll = React.useMemo(() => all.filter((l) => l.status !== "Closed"), [all]);
+  const closedAll = React.useMemo(() => all.filter((l) => l.status === "Closed"), [all]);
+  const loans = activeTab === "active" ? activeAll : closedAll;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -390,7 +402,7 @@ export default function MyLoansScreen() {
             onPress={() => setActiveTab("active")}
           >
             <Text style={[styles.tabText, { color: activeTab === "active" ? colors.primary : colors.mutedForeground }]}>
-              Active Loans ({ACTIVE_LOANS.length})
+              Active Loans ({activeAll.length})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -398,7 +410,7 @@ export default function MyLoansScreen() {
             onPress={() => setActiveTab("closed")}
           >
             <Text style={[styles.tabText, { color: activeTab === "closed" ? colors.primary : colors.mutedForeground }]}>
-              Closed Loans ({CLOSED_LOANS.length})
+              Closed Loans ({closedAll.length})
             </Text>
           </TouchableOpacity>
         </View>

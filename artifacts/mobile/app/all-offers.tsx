@@ -16,11 +16,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
+import { useListLoanOffers } from "@workspace/api-client-react";
+import { mapOffer, type DisplayOffer, type DisplayCategory } from "@/lib/offerAdapter";
 
-type Category = "all" | "personal" | "home" | "car" | "school" | "business" | "emergency";
+type Category = DisplayCategory;
 type SortOption = "recommended" | "rate_low" | "amount_high" | "fee_low";
 
-const ALL_OFFERS = [
+const _LEGACY_ALL_OFFERS_REMOVED = [
   // Personal Loan
   {
     id: "1", bank: "Finstar Bank", initial: "F", initialBg: "#10B981",
@@ -238,7 +240,8 @@ const ALL_OFFERS = [
   },
 ];
 
-type Offer = typeof ALL_OFFERS[0];
+type Offer = DisplayOffer;
+void _LEGACY_ALL_OFFERS_REMOVED;
 
 const CATEGORIES: { id: Category; label: string; icon: string; color: string; bg: string }[] = [
   { id: "all",       label: "All Offers",    icon: "grid",       color: "#4F46E5", bg: "#EEF2FF" },
@@ -476,14 +479,20 @@ export default function AllOffersScreen() {
   const [showSort, setShowSort] = useState(false);
   const [detailOffer, setDetailOffer] = useState<Offer | null>(null);
 
+  const offersQuery = useListLoanOffers();
+  const allOffers: Offer[] = useMemo(
+    () => (offersQuery.data ?? []).map(mapOffer),
+    [offersQuery.data],
+  );
+
   const navigateApply = (offer: Offer) => {
     router.push(
-      `/apply-loan?bank=${encodeURIComponent(offer.bank)}&loanType=${encodeURIComponent(offer.type)}&category=${offer.category}&rate=${encodeURIComponent(offer.rate)}&maxAmount=${encodeURIComponent(offer.maxAmount)}&processingFee=${encodeURIComponent(offer.processingFee)}`
+      `/apply-loan?offerId=${encodeURIComponent(offer.id)}&bank=${encodeURIComponent(offer.bank)}&loanType=${encodeURIComponent(offer.type)}&category=${offer.category}&rate=${encodeURIComponent(offer.rate)}&maxAmount=${encodeURIComponent(offer.maxAmount)}&processingFee=${encodeURIComponent(offer.processingFee)}`
     );
   };
 
   const filtered = useMemo(() => {
-    let list = ALL_OFFERS;
+    let list = allOffers;
     if (category !== "all") list = list.filter((o) => o.category === category);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -493,7 +502,7 @@ export default function AllOffersScreen() {
     if (sort === "amount_high") list = [...list].sort((a, b) => b.maxAmountNum - a.maxAmountNum);
     if (sort === "fee_low")     list = [...list].sort((a, b) => parseFloat(a.processingFee) - parseFloat(b.processingFee));
     return list;
-  }, [search, category, sort]);
+  }, [search, category, sort, allOffers]);
 
   const activeCat = CATEGORIES.find((c) => c.id === category)!;
 

@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { loginRedirect } from "@/lib/auth";
 
 const BLUE = "#1E56E5";
 const BLUE_MID = "#3B6FEF";
@@ -33,11 +34,13 @@ export default function Login() {
   const [forgotSent, setForgotSent] = useState(false);
 
   const handleLogin = () => {
-    const e: typeof errors = {};
-    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) e.email = "Enter a valid email address";
-    if (password.length < 6) e.password = "Password must be at least 6 characters";
-    setErrors(e);
-    if (Object.keys(e).length === 0) router.replace("/(tabs)");
+    // Replit Auth (OIDC) handles the actual credentials. The email/password
+    // fields are decorative — pressing Sign In starts the OIDC redirect flow.
+    loginRedirect("/");
+  };
+
+  const handleSso = () => {
+    loginRedirect("/");
   };
 
   const closeForgot = () => {
@@ -162,9 +165,9 @@ export default function Login() {
 
         {/* Social buttons */}
         <View style={s.socialRow}>
-          <SocialBtn icon="chrome" label="Google" color="#DB4437" />
-          <SocialBtn icon="github" label="Apple" color={INK} />
-          <SocialBtn icon="facebook" label="Facebook" color="#1877F2" />
+          <SocialBtn icon="chrome" label="Google" color="#DB4437" onPress={handleSso} />
+          <SocialBtn icon="github" label="Apple" color={INK} onPress={handleSso} />
+          <SocialBtn icon="facebook" label="Facebook" color="#1877F2" onPress={handleSso} />
         </View>
 
         {/* Sign up link */}
@@ -240,9 +243,9 @@ export default function Login() {
   );
 }
 
-function SocialBtn({ icon, label, color }: { icon: string; label: string; color: string }) {
+function SocialBtn({ icon, label, color, onPress }: { icon: string; label: string; color: string; onPress?: () => void }) {
   return (
-    <TouchableOpacity style={s.socialBtn} activeOpacity={0.75}>
+    <TouchableOpacity style={s.socialBtn} activeOpacity={0.75} onPress={onPress}>
       <Feather name={icon as any} size={18} color={color} />
       <Text style={s.socialText}>{label}</Text>
     </TouchableOpacity>
