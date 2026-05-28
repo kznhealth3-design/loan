@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
@@ -464,10 +465,8 @@ export default function OffersScreen() {
         <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recommended for You</Text>
-            <TouchableOpacity onPress={() => setShowAll(!showAll)} style={styles.viewAllRow}>
-              <Text style={[styles.viewAllText, { color: colors.primary }]}>
-                {showAll ? "Show Less" : "View All Offers"}
-              </Text>
+            <TouchableOpacity onPress={() => router.push("/all-offers")} style={styles.viewAllRow}>
+              <Text style={[styles.viewAllText, { color: colors.primary }]}>View All Offers</Text>
               <Feather name="arrow-right" size={13} color={colors.primary} />
             </TouchableOpacity>
           </View>
