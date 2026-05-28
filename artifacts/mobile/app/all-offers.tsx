@@ -688,8 +688,8 @@ const s = StyleSheet.create({
   headerSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
 
   searchRow: { flexDirection: "row", padding: 10, gap: 8, alignItems: "center", borderBottomWidth: 1 },
-  searchBox: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, height: 40 },
-  searchInput: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular" },
+  searchBox: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11 },
+  searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", paddingVertical: 0, ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : {}) },
   sortBtn: { flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, height: 40 },
   sortBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
 
@@ -746,9 +746,9 @@ const s = StyleSheet.create({
   modalSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   closeBtn: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   fieldLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginBottom: 8 },
-  inputRow: { flexDirection: "row", alignItems: "center", borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 12, height: 46, marginBottom: 4 },
-  prefix: { fontSize: 15, fontFamily: "Inter_500Medium", marginRight: 4 },
-  input: { flex: 1, fontSize: 15, fontFamily: "Inter_500Medium" },
+  inputRow: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, marginBottom: 4 },
+  prefix: { fontSize: 15, fontFamily: "Inter_600SemiBold", marginRight: 2 },
+  input: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", paddingVertical: 0, ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : {}) },
   hint: { fontSize: 11, fontFamily: "Inter_400Regular" },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14 },
   tenureChip: { borderWidth: 1.5, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 14 },

@@ -629,9 +629,9 @@ const styles = StyleSheet.create({
   closeBtn: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
 
   inputLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginBottom: 8 },
-  inputWrap: { flexDirection: "row", alignItems: "center", borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 12, height: 46 },
-  inputPrefix: { fontSize: 15, fontFamily: "Inter_500Medium", marginRight: 4 },
-  input: { flex: 1, fontSize: 15, fontFamily: "Inter_500Medium" },
+  inputWrap: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13 },
+  inputPrefix: { fontSize: 15, fontFamily: "Inter_600SemiBold", marginRight: 2 },
+  input: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", paddingVertical: 0, ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : {}) },
   inputHint: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 4 },
 
   tenureRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },

@@ -202,8 +202,8 @@ function Field({
 }
 const fi = StyleSheet.create({
   label: { fontSize: 11, fontFamily: "Inter_400Regular", marginBottom: 6 },
-  box: { flexDirection: "row", alignItems: "center", borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 12, height: 48 },
-  input: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular" },
+  box: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13 },
+  input: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", paddingVertical: 0, ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : {}) },
 });
 
 // ─── Dropdown Field ───────────────────────────────────────────────────────────
