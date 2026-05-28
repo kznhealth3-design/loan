@@ -1,8 +1,8 @@
 {
   "version": 2,
   "name": "loango-frontend",
-  "buildCommand": "npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/mobile run build",
-  "outputDirectory": "artifacts/mobile/dist",
+  "buildCommand": "npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/mobile run build && cp -r artifacts/mobile/dist dist",
+  "outputDirectory": "dist",
   "framework": null,
   "installCommand": "npm install -g pnpm && pnpm install --frozen-lockfile",
   "routes": [
