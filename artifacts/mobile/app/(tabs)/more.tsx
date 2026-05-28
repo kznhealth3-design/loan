@@ -787,18 +787,15 @@ export default function MoreScreen() {
   const topPad = isWeb ? 67 : insets.top;
 
   const [modal, setModal] = useState<ModalKey>(null);
+  const [showLogout, setShowLogout] = useState(false);
   const open = (m: ModalKey) => setModal(m);
   const close = () => setModal(null);
 
-  const confirmLogout = () => {
-    Alert.alert(
-      "Log Out",
-      "Are you sure you want to log out of LoanGo?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Log Out", style: "destructive", onPress: () => Alert.alert("Logged Out", "You have been logged out successfully.") },
-      ]
-    );
+  const confirmLogout = () => setShowLogout(true);
+
+  const doLogout = () => {
+    setShowLogout(false);
+    router.replace("/onboarding");
   };
 
   const SECTIONS = [
@@ -885,11 +882,51 @@ export default function MoreScreen() {
         ))}
 
         {/* Logout */}
-        <TouchableOpacity style={[styles.logoutBtn, { borderColor: "#4F46E5" }]} onPress={confirmLogout} activeOpacity={0.8}>
-          <Feather name="log-out" size={18} color="#4F46E5" />
-          <Text style={[styles.logoutText, { color: "#4F46E5" }]}>Logout</Text>
+        <TouchableOpacity
+          style={[styles.logoutBtn, { borderColor: "#DC2626", backgroundColor: "#FEF2F2" }]}
+          onPress={confirmLogout}
+          activeOpacity={0.8}
+        >
+          <Feather name="log-out" size={18} color="#DC2626" />
+          <Text style={[styles.logoutText, { color: "#DC2626" }]}>Logout</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Logout Confirmation Modal */}
+      <Modal
+        visible={showLogout}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLogout(false)}
+      >
+        <Pressable style={styles.logoutOverlay} onPress={() => setShowLogout(false)}>
+          <Pressable style={[styles.logoutCard, { backgroundColor: colors.card }]} onPress={() => {}}>
+            <View style={styles.logoutIconCircle}>
+              <Feather name="log-out" size={26} color="#DC2626" />
+            </View>
+            <Text style={[styles.logoutTitle, { color: colors.foreground }]}>Log Out?</Text>
+            <Text style={[styles.logoutMsg, { color: colors.mutedForeground }]}>
+              Are you sure you want to log out of LoanGo? You&apos;ll need to sign in again to access your account.
+            </Text>
+            <View style={styles.logoutActions}>
+              <TouchableOpacity
+                style={[styles.logoutCancelBtn, { borderColor: colors.border }]}
+                onPress={() => setShowLogout(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.logoutCancelText, { color: colors.foreground }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.logoutConfirmBtn}
+                onPress={doLogout}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.logoutConfirmText}>Log Out</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Modals */}
       {modal === "personal"    && <PersonalInfoModal onClose={close} />}
@@ -924,4 +961,14 @@ const styles = StyleSheet.create({
   divider: { height: 1, marginLeft: 66 },
   logoutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderRadius: 14, borderWidth: 1.5, paddingVertical: 16, marginTop: 4 },
   logoutText: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  logoutOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center", padding: 24 },
+  logoutCard: { width: "100%", maxWidth: 360, borderRadius: 20, padding: 24, alignItems: "center" },
+  logoutIconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: "#FEE2E2", alignItems: "center", justifyContent: "center", marginBottom: 16 },
+  logoutTitle: { fontSize: 20, fontFamily: "Inter_700Bold", marginBottom: 8, textAlign: "center" },
+  logoutMsg: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20, marginBottom: 24 },
+  logoutActions: { flexDirection: "row", gap: 12, width: "100%" },
+  logoutCancelBtn: { flex: 1, borderWidth: 1.5, borderRadius: 12, paddingVertical: 14, alignItems: "center" },
+  logoutCancelText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  logoutConfirmBtn: { flex: 1, backgroundColor: "#DC2626", borderRadius: 12, paddingVertical: 14, alignItems: "center" },
+  logoutConfirmText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#FFFFFF" },
 });
