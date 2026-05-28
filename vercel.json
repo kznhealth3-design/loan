@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "name": "loango-frontend",
+  "builds": [
+    {
+      "src": "artifacts/mobile/scripts/build.js",
+      "use": "@vercel/static",
+      "config": {
+        "distDir": "artifacts/mobile/dist"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/artifacts/mobile/dist/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/artifacts/mobile/dist/index.html"
+    }
+  ]
+}
