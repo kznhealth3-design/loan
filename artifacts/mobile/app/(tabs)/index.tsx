@@ -703,7 +703,7 @@ export default function DashboardScreen() {
                     <Text style={s.congrSub}>The approved amount will be disbursed to your bank account.</Text>
                   </View>
                   <TouchableOpacity style={[s.viewDetailsBtn, { backgroundColor: "#4F46E5" }]}
-                    onPress={() => setSelectedLoan(loan)}>
+                    onPress={() => router.push("/loan-detail")}>
                     <Text style={s.viewDetailsBtnText}>View Details</Text>
                   </TouchableOpacity>
                 </View>
