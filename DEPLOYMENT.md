@@ -37,8 +37,9 @@ vercel --prod
 
 1. Push your repo to GitHub
 2. Import the project in Vercel dashboard
-3. Set the **Root Directory** to `.`
+3. Set the **Root Directory** to `.` (default — no change needed)
 4. Vercel will use `vercel.json` for the build configuration
+5. **No build command override needed** — it's set in `vercel.json`
 
 ### Required Environment Variables
 

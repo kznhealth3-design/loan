@@ -1,7 +1,7 @@
 {
   "version": 2,
   "name": "loango-frontend",
-  "buildCommand": "cd artifacts/mobile && node scripts/build.js",
+  "buildCommand": "npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/mobile run build",
   "outputDirectory": "artifacts/mobile/dist",
   "routes": [
     { "src": "/_expo/static/(.*)", "dest": "/_expo/static/$1" },
