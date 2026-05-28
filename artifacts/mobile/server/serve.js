@@ -124,6 +124,12 @@ const server = http.createServer((req, res) => {
   // Exact match
   let entry = cache.get(pathname);
 
+  // Static rendering: try /path.html for clean URLs like /register
+  if (!entry && !pathname.includes(".") && pathname !== "/") {
+    const trimmed = pathname.replace(/\/$/, "");
+    entry = cache.get(trimmed + ".html");
+  }
+
   // Directory → try /index.html inside
   if (!entry) {
     const dirIndex = pathname.endsWith("/") ? pathname + "index.html" : pathname + "/index.html";
