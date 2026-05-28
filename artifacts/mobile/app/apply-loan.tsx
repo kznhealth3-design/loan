@@ -107,8 +107,8 @@ function Field({ label, value, onChange, placeholder, keyboardType = "default", 
 const f = StyleSheet.create({
   wrap: { marginBottom: 14 },
   label: { fontSize: 12, fontFamily: "Inter_500Medium", marginBottom: 6 },
-  box: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, minHeight: 48 },
-  input: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", paddingVertical: 0, ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : {}) },
+  box: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, minHeight: 48, overflow: "hidden" },
+  input: { flex: 1, minWidth: 0, fontSize: 14, fontFamily: "Inter_400Regular", paddingVertical: 0, ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : {}) },
   hint: { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 3 },
 });
 

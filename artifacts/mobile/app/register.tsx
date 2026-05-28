@@ -898,10 +898,11 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center",
     backgroundColor: "#F8FAFC", borderRadius: 12, borderWidth: 1.5, borderColor: "#E2E8F0",
     paddingHorizontal: 14, paddingVertical: 13, gap: 10,
+    overflow: "hidden",
   },
   inputError: { borderColor: "#FCA5A5", backgroundColor: "#FFF5F5" },
   input: {
-    flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", color: "#1E293B",
+    flex: 1, minWidth: 0, fontSize: 14, fontFamily: "Inter_400Regular", color: "#1E293B",
     paddingVertical: 0,
     ...(isWeb ? { outlineStyle: "none" } as any : {}),
   },

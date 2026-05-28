@@ -71,8 +71,8 @@ function Field({ label, value, onChange, placeholder, keyboardType = "default" }
   );
 }
 const fd = StyleSheet.create({
-  box: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13 },
-  input: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", paddingVertical: 0, ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : {}) },
+  box: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, overflow: "hidden" },
+  input: { flex: 1, minWidth: 0, fontSize: 14, fontFamily: "Inter_400Regular", paddingVertical: 0, ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : {}) },
 });
 
 // ─── Toggle Row ───────────────────────────────────────────────────────────────
