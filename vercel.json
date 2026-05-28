@@ -3,7 +3,10 @@
   "name": "loango-frontend",
   "buildCommand": "npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/mobile run build",
   "outputDirectory": "artifacts/mobile/dist",
+  "framework": null,
+  "installCommand": "npm install -g pnpm && pnpm install --frozen-lockfile",
   "routes": [
+    { "handle": "filesystem" },
     { "src": "/_expo/static/(.*)", "dest": "/_expo/static/$1" },
     { "src": "/assets/(.*)", "dest": "/assets/$1" },
     { "src": "/favicon.ico", "dest": "/favicon.ico" },
