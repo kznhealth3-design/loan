@@ -12,11 +12,12 @@ const fs = require("fs");
 const projectRoot = path.resolve(__dirname, "..");
 const distDir = path.join(projectRoot, "dist");
 
-// Fonts we actually use in the app — only preload these to keep bytes minimal
+// Fonts to preload + register via @font-face at HTML parse time.
+// This makes icon fonts available before the JS bundle even loads.
 const FONTS_TO_PRELOAD = ["Feather"];
 
-function findFontUrls() {
-  const found = [];
+function findFontFiles() {
+  const found = []; // { fontFamily, url }
   if (!fs.existsSync(distDir)) return found;
 
   const walk = (dir) => {
@@ -26,8 +27,8 @@ function findFontUrls() {
       else if (entry.isFile() && entry.name.endsWith(".ttf")) {
         const base = entry.name.split(".")[0];
         if (FONTS_TO_PRELOAD.includes(base)) {
-          const rel = "/" + path.relative(distDir, full).split(path.sep).join("/");
-          found.push(rel);
+          const url = "/" + path.relative(distDir, full).split(path.sep).join("/");
+          found.push({ fontFamily: base, url });
         }
       }
     }
@@ -36,16 +37,28 @@ function findFontUrls() {
   return found;
 }
 
-function injectPreloads() {
-  const urls = findFontUrls();
-  if (urls.length === 0) {
+function injectFontPreloads() {
+  const fonts = findFontFiles();
+  if (fonts.length === 0) {
     console.log("No icon fonts found to preload");
     return;
   }
 
-  const preloadTags = urls
-    .map((u) => `<link rel="preload" href="${u}" as="font" type="font/ttf" crossorigin="anonymous"/>`)
+  const preloadTags = fonts
+    .map((f) => `<link rel="preload" href="${f.url}" as="font" type="font/ttf" crossorigin="anonymous"/>`)
     .join("");
+
+  // Register @font-face so the browser loads & maps the font during HTML parse.
+  // font-display: block means the browser waits briefly for the font, avoiding
+  // flash of missing icons. The font is small (~56KB) so this is safe.
+  const faceCss = fonts
+    .map(
+      (f) =>
+        `@font-face{font-family:"${f.fontFamily}";src:url("${f.url}") format("truetype");font-weight:normal;font-style:normal;font-display:block;}`,
+    )
+    .join("");
+
+  const injection = `<meta data-preload-fonts="1"/>${preloadTags}<style data-font-faces="1">${faceCss}</style>`;
 
   let htmlCount = 0;
   const walk = (dir) => {
@@ -55,7 +68,7 @@ function injectPreloads() {
       else if (entry.isFile() && entry.name.endsWith(".html")) {
         let html = fs.readFileSync(full, "utf-8");
         if (!html.includes("</head>") || html.includes("data-preload-fonts")) continue;
-        html = html.replace("</head>", `<meta data-preload-fonts="1"/>${preloadTags}</head>`);
+        html = html.replace("</head>", `${injection}</head>`);
         fs.writeFileSync(full, html);
         htmlCount++;
       }
@@ -63,8 +76,8 @@ function injectPreloads() {
   };
   walk(distDir);
 
-  console.log(`Injected ${urls.length} font preload(s) into ${htmlCount} HTML page(s)`);
-  urls.forEach((u) => console.log("  preload:", u));
+  console.log(`Injected ${fonts.length} font preload(s) + @font-face into ${htmlCount} HTML page(s)`);
+  fonts.forEach((f) => console.log(`  preload + register: ${f.fontFamily}`));
 }
 
 function exportWeb() {
@@ -101,7 +114,7 @@ function exportWeb() {
   try {
     await exportWeb();
     console.log("Web export complete → dist/");
-    injectPreloads();
+    injectFontPreloads();
     console.log("Build done.");
     process.exit(0);
   } catch (err) {
