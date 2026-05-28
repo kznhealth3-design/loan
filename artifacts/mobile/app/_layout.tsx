@@ -13,8 +13,9 @@ SplashScreen.preventAutoHideAsync();
 
 function RootLayoutNav() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+    <Stack screenOptions={{ headerShown: false }} initialRouteName="onboarding">
+      <Stack.Screen name="onboarding"   options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)"       options={{ headerShown: false }} />
       <Stack.Screen name="all-offers"   options={{ headerShown: false, animation: "slide_from_right" }} />
       <Stack.Screen name="apply-loan"   options={{ headerShown: false, animation: "slide_from_right" }} />
       <Stack.Screen name="loan-detail"  options={{ headerShown: false, animation: "slide_from_right" }} />
