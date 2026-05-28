@@ -18,7 +18,17 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const BLUE = "#1E56E5";
+const BLUE_MID = "#3B6FEF";
 const isWeb = Platform.OS === "web";
+
+type Step = 1 | 2 | 3 | 4;
+
+const STEP_TITLES: Record<Step, { title: string; sub: string; label: string }> = {
+  1: { title: "Create Your Account",   sub: "Let's get started with a few personal details.",  label: "Personal" },
+  2: { title: "Secure Your Account",   sub: "Choose a strong password to protect your account.", label: "Security" },
+  3: { title: "Tell Us About You",     sub: "Help us personalize your experience.",              label: "Preferences" },
+  4: { title: "Review & Confirm",      sub: "Take a final look and accept our terms.",           label: "Confirm" },
+};
 
 // ─── Data ──────────────────────────────────────────────────────────────────────
 
@@ -196,6 +206,71 @@ function DobModal({
   );
 }
 
+// ─── Terms & Conditions modal ──────────────────────────────────────────────────
+
+function TermsModal({
+  visible, kind, onClose,
+}: {
+  visible: boolean; kind: "terms" | "privacy"; onClose: () => void;
+}) {
+  const isTerms = kind === "terms";
+  return (
+    <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
+      <Pressable style={styles.overlay} onPress={onClose} />
+      <View style={[styles.sheet, { maxHeight: "85%" }]}>
+        <View style={styles.sheetHandle} />
+        <View style={styles.termsHeader}>
+          <View style={styles.termsHeaderIcon}>
+            <Feather name={isTerms ? "file-text" : "shield"} size={18} color={BLUE} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.termsHeaderTitle}>{isTerms ? "Terms & Conditions" : "Privacy Policy"}</Text>
+            <Text style={styles.termsHeaderSub}>Last updated: May 2026</Text>
+          </View>
+          <TouchableOpacity onPress={onClose} style={styles.termsClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Feather name="x" size={18} color="#64748B" />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView style={{ paddingHorizontal: 20 }} contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+          {(isTerms ? TERMS_SECTIONS : PRIVACY_SECTIONS).map((sec, i) => (
+            <View key={i} style={{ marginTop: i === 0 ? 8 : 16 }}>
+              <Text style={styles.termsSection}>{i + 1}. {sec.heading}</Text>
+              <Text style={styles.termsBody}>{sec.body}</Text>
+            </View>
+          ))}
+        </ScrollView>
+
+        <View style={styles.termsFooter}>
+          <TouchableOpacity style={styles.termsAccept} onPress={onClose} activeOpacity={0.85}>
+            <Text style={styles.termsAcceptText}>Got it</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const TERMS_SECTIONS = [
+  { heading: "Acceptance of Terms",          body: "By creating an account with LoanGo, you agree to be bound by these Terms & Conditions. If you do not agree, please do not use our services." },
+  { heading: "Eligibility",                  body: "You must be at least 18 years old and a legal resident of a supported country to apply for a loan through LoanGo." },
+  { heading: "Loan Approval",                body: "All loan applications are subject to credit verification and final approval. LoanGo reserves the right to approve or decline any application at its sole discretion." },
+  { heading: "Interest Rates & Fees",        body: "Interest rates, processing fees and other charges will be disclosed before you accept any loan offer. You agree to repay the loan as per the agreed schedule." },
+  { heading: "Repayment Obligation",         body: "You agree to repay all EMIs on or before the due dates. Late or missed payments may attract penalties and may be reported to credit bureaus." },
+  { heading: "Account Security",             body: "You are responsible for keeping your account credentials secure. Notify us immediately of any unauthorized access." },
+  { heading: "Changes to Terms",             body: "LoanGo may update these Terms from time to time. Continued use of our services after changes constitutes acceptance of the revised Terms." },
+];
+
+const PRIVACY_SECTIONS = [
+  { heading: "Information We Collect",       body: "We collect personal information you provide such as name, email, phone, date of birth, employment details and identity documents needed for KYC." },
+  { heading: "How We Use Your Data",         body: "Your information is used to verify your identity, process loan applications, manage your account and communicate important updates." },
+  { heading: "Data Sharing",                 body: "We may share data with credit bureaus, payment processors and verified lending partners — strictly for the purpose of providing our services." },
+  { heading: "Data Security",                body: "All data is encrypted in transit and at rest using bank-grade 256-bit encryption. Access is strictly controlled and audited." },
+  { heading: "Your Rights",                  body: "You may request access, correction or deletion of your personal data at any time by contacting our support team." },
+  { heading: "Cookies & Tracking",           body: "We use cookies and similar technologies to improve your experience, analyze usage and personalize content." },
+  { heading: "Contact Us",                   body: "For any privacy concerns or questions, reach out to privacy@loango.example.com." },
+];
+
 // ─── Field wrapper ─────────────────────────────────────────────────────────────
 
 function Field({ label, error, optional, children }: { label: string; error?: string; optional?: boolean; children: React.ReactNode }) {
@@ -210,37 +285,40 @@ function Field({ label, error, optional, children }: { label: string; error?: st
   );
 }
 
-// ─── Step indicator ────────────────────────────────────────────────────────────
+// ─── Step indicator (4 steps, compact) ─────────────────────────────────────────
 
-function StepIndicator({ step }: { step: 1 | 2 }) {
+function StepIndicator({ step }: { step: Step }) {
   return (
-    <View style={styles.stepRow}>
-      <View style={{ alignItems: "center" }}>
-        {step > 1 ? (
-          <View style={[styles.stepCircle, { backgroundColor: BLUE }]}>
-            <Feather name="check" size={13} color="#fff" />
-          </View>
-        ) : (
-          <LinearGradient colors={[BLUE, "#3B6FEF"]} style={styles.stepCircle}>
-            <Text style={styles.stepNum}>1</Text>
-          </LinearGradient>
-        )}
-        <Text style={[styles.stepLabel, step === 1 && { color: BLUE }]}>Personal Details</Text>
+    <View style={{ marginBottom: 22 }}>
+      <View style={styles.stepHeader}>
+        <Text style={styles.stepCounter}>Step {step} of 4</Text>
+        <Text style={styles.stepHeaderLabel}>{STEP_TITLES[step].label}</Text>
       </View>
-
-      <View style={[styles.stepLine, { backgroundColor: step > 1 ? BLUE : "#E2E8F0" }]} />
-
-      <View style={{ alignItems: "center" }}>
-        {step === 2 ? (
-          <LinearGradient colors={[BLUE, "#3B6FEF"]} style={styles.stepCircle}>
-            <Text style={styles.stepNum}>2</Text>
-          </LinearGradient>
-        ) : (
-          <View style={[styles.stepCircle, { backgroundColor: "#F1F5F9", borderWidth: 2, borderColor: "#E2E8F0" }]}>
-            <Text style={[styles.stepNum, { color: "#94A3B8" }]}>2</Text>
-          </View>
-        )}
-        <Text style={[styles.stepLabel, step === 2 && { color: BLUE }]}>More About You</Text>
+      <View style={styles.stepBar}>
+        {[1, 2, 3, 4].map((i, idx) => {
+          const active = step === i;
+          const done   = step > i;
+          return (
+            <React.Fragment key={i}>
+              {idx > 0 && <View style={[styles.stepConn, (done || (step === i && step > 1)) && { backgroundColor: BLUE }]} />}
+              <View style={{ alignItems: "center" }}>
+                {done ? (
+                  <View style={[styles.stepDot, { backgroundColor: BLUE }]}>
+                    <Feather name="check" size={11} color="#fff" />
+                  </View>
+                ) : active ? (
+                  <LinearGradient colors={[BLUE, BLUE_MID]} style={styles.stepDot}>
+                    <Text style={styles.stepDotNum}>{i}</Text>
+                  </LinearGradient>
+                ) : (
+                  <View style={[styles.stepDot, styles.stepDotIdle]}>
+                    <Text style={[styles.stepDotNum, { color: "#94A3B8" }]}>{i}</Text>
+                  </View>
+                )}
+              </View>
+            </React.Fragment>
+          );
+        })}
       </View>
     </View>
   );
@@ -257,7 +335,7 @@ function CheckRow({
 }) {
   return (
     <TouchableOpacity style={styles.checkRow} onPress={onPress} activeOpacity={0.75}>
-      <View style={[styles.checkIconWrap, icon && { backgroundColor: iconColor + "18" }]}>
+      <View style={[styles.checkIconWrap, icon && { backgroundColor: (iconColor || "#000") + "18" }]}>
         {emoji ? (
           <Text style={{ fontSize: 18 }}>{emoji}</Text>
         ) : (
@@ -272,14 +350,31 @@ function CheckRow({
   );
 }
 
+// ─── Review row ────────────────────────────────────────────────────────────────
+
+function ReviewRow({ icon, label, value }: { icon: string; label: string; value: string }) {
+  if (!value) return null;
+  return (
+    <View style={styles.reviewRow}>
+      <View style={styles.reviewIcon}>
+        <Feather name={icon as any} size={14} color={BLUE} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.reviewLabel}>{label}</Text>
+        <Text style={styles.reviewValue} numberOfLines={2}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
 // ─── Main screen ───────────────────────────────────────────────────────────────
 
 export default function Register() {
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<Step>(1);
 
-  // Step 1 form state
+  // Step 1 — Personal
   const [firstName, setFirstName]     = useState("");
   const [middleName, setMiddleName]   = useState("");
   const [lastName, setLastName]       = useState("");
@@ -292,29 +387,49 @@ export default function Register() {
   const [dobMonth, setDobMonth]       = useState("");
   const [dobYear, setDobYear]         = useState("");
   const [gender, setGender]           = useState("");
+
+  // Step 2 — Security
   const [password, setPassword]       = useState("");
   const [confirm, setConfirm]         = useState("");
   const [showPwd, setShowPwd]         = useState(false);
   const [showConf, setShowConf]       = useState(false);
 
-  // Step 2 form state
-  const [referrals, setReferrals]             = useState<string[]>([]);
-  const [loanPrefs, setLoanPrefs]             = useState<string[]>([]);
-  const [employment, setEmployment]           = useState("");
-  const [marketing, setMarketing]             = useState(true);
+  // Step 3 — Preferences
+  const [referrals, setReferrals]     = useState<string[]>([]);
+  const [loanPrefs, setLoanPrefs]     = useState<string[]>([]);
+  const [employment, setEmployment]   = useState("");
+  const [marketing, setMarketing]     = useState(true);
+
+  // Step 4 — Consent
+  const [acceptTerms, setAcceptTerms]     = useState(false);
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
 
   // Modal visibility
-  const [countryOpen,  setCountryOpen]  = useState(false);
-  const [genderOpen,   setGenderOpen]   = useState(false);
-  const [dobOpen,      setDobOpen]      = useState(false);
-  const [phoneOpen,    setPhoneOpen]    = useState(false);
-  const [employOpen,   setEmployOpen]   = useState(false);
+  const [countryOpen, setCountryOpen] = useState(false);
+  const [genderOpen,  setGenderOpen]  = useState(false);
+  const [dobOpen,     setDobOpen]     = useState(false);
+  const [phoneOpen,   setPhoneOpen]   = useState(false);
+  const [employOpen,  setEmployOpen]  = useState(false);
+  const [termsModal,  setTermsModal]  = useState<null | "terms" | "privacy">(null);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const dobDisplay = dobDay && dobMonth && dobYear
     ? `${dobDay} / ${MONTHS[parseInt(dobMonth) - 1]} / ${dobYear}`
     : "";
+
+  const fullName = [firstName, middleName, lastName].filter(Boolean).join(" ").trim();
+  const phoneFull = phone ? `${phoneFlag} ${phoneCode} ${phone}` : "";
+  const loanPrefsLabel = loanPrefs
+    .map((k) => LOAN_TYPES.find((l) => l.key === k)?.label)
+    .filter(Boolean)
+    .join(", ");
+  const referralLabel = referrals
+    .map((k) => REFERRAL_SOURCES.find((r) => r.key === k)?.label)
+    .filter(Boolean)
+    .join(", ");
+
+  const canSubmit = acceptTerms && acceptPrivacy;
 
   const toggleArr = (arr: string[], val: string, set: (v: string[]) => void) => {
     set(arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]);
@@ -328,20 +443,36 @@ export default function Register() {
     if (!country)          e.country   = "Please select a country";
     if (!phone.trim())     e.phone     = "Phone number is required";
     if (!gender)           e.gender    = "Please select your gender";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const validateStep2 = () => {
+    const e: Record<string, string> = {};
     if (password.length < 8) e.password = "At least 8 characters with letters, numbers & symbols";
     if (password !== confirm) e.confirm = "Passwords do not match";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
+  const goToStep = (s: Step) => {
+    setStep(s);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  };
+
   const handleNext = () => {
-    if (validateStep1()) {
-      setStep(2);
-      scrollRef.current?.scrollTo({ y: 0, animated: false });
-    }
+    if (step === 1 && !validateStep1()) return;
+    if (step === 2 && !validateStep2()) return;
+    if (step < 4) goToStep((step + 1) as Step);
+  };
+
+  const handleBack = () => {
+    if (step > 1) goToStep((step - 1) as Step);
+    else router.back();
   };
 
   const handleCreate = () => {
+    if (!canSubmit) return;
     Alert.alert(
       "Account Created! 🎉",
       "Welcome to LoanGo! Your account has been created successfully.",
@@ -354,11 +485,13 @@ export default function Register() {
   const topPad = insets.top + (isWeb ? 8 : 4);
   const botPad = insets.bottom + 16;
 
+  const meta = STEP_TITLES[step];
+
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
       {/* Fixed header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => step === 2 ? setStep(1) : router.back()} style={styles.backBtn} activeOpacity={0.7}>
+        <TouchableOpacity onPress={handleBack} style={styles.backBtn} activeOpacity={0.7}>
           <Feather name="arrow-left" size={20} color="#1E293B" />
         </TouchableOpacity>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
@@ -372,59 +505,55 @@ export default function Register() {
       <ScrollView
         ref={scrollRef}
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: botPad + 80 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: botPad + 110 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         {/* Title */}
-        <View style={{ marginTop: 20, marginBottom: 20 }}>
-          <Text style={styles.title}>{step === 1 ? "Create Your Account" : "Almost There!"}</Text>
-          <Text style={styles.subtitle}>
-            {step === 1
-              ? "Let's get started! Please fill in your details below."
-              : "Help us personalize your experience."}
-          </Text>
+        <View style={{ marginTop: 18, marginBottom: 18 }}>
+          <Text style={styles.title}>{meta.title}</Text>
+          <Text style={styles.subtitle}>{meta.sub}</Text>
         </View>
 
         {/* Step indicator */}
         <StepIndicator step={step} />
 
-        {step === 1 ? (
+        {/* ── Step 1: Personal ── */}
+        {step === 1 && (
           <>
-            {/* ── Personal Information ── */}
             <Text style={styles.sectionHeader}>Personal Information</Text>
 
             <Field label="First Name" error={errors.firstName}>
               <View style={[styles.inputWrap, !!errors.firstName && styles.inputError]}>
-                <Feather name="user" size={16} color="#94A3B8" style={styles.inputIcon} />
+                <Feather name="user" size={16} color="#94A3B8" />
                 <TextInput style={styles.input} placeholder="Enter first name" placeholderTextColor="#94A3B8" value={firstName} onChangeText={setFirstName} autoCapitalize="words" />
               </View>
             </Field>
 
             <Field label="Middle Name" optional>
               <View style={styles.inputWrap}>
-                <Feather name="user" size={16} color="#94A3B8" style={styles.inputIcon} />
+                <Feather name="user" size={16} color="#94A3B8" />
                 <TextInput style={styles.input} placeholder="Enter middle name" placeholderTextColor="#94A3B8" value={middleName} onChangeText={setMiddleName} autoCapitalize="words" />
               </View>
             </Field>
 
             <Field label="Last Name" error={errors.lastName}>
               <View style={[styles.inputWrap, !!errors.lastName && styles.inputError]}>
-                <Feather name="user" size={16} color="#94A3B8" style={styles.inputIcon} />
+                <Feather name="user" size={16} color="#94A3B8" />
                 <TextInput style={styles.input} placeholder="Enter last name" placeholderTextColor="#94A3B8" value={lastName} onChangeText={setLastName} autoCapitalize="words" />
               </View>
             </Field>
 
             <Field label="Email" error={errors.email}>
               <View style={[styles.inputWrap, !!errors.email && styles.inputError]}>
-                <Feather name="mail" size={16} color="#94A3B8" style={styles.inputIcon} />
+                <Feather name="mail" size={16} color="#94A3B8" />
                 <TextInput style={styles.input} placeholder="Enter email address" placeholderTextColor="#94A3B8" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
               </View>
             </Field>
 
             <Field label="Country" error={errors.country}>
               <TouchableOpacity style={[styles.inputWrap, !!errors.country && styles.inputError]} onPress={() => setCountryOpen(true)} activeOpacity={0.8}>
-                <Feather name="globe" size={16} color="#94A3B8" style={styles.inputIcon} />
+                <Feather name="globe" size={16} color="#94A3B8" />
                 <Text style={[styles.input, !country && { color: "#94A3B8" }]} numberOfLines={1}>{country || "Select country"}</Text>
                 <Feather name="chevron-down" size={16} color="#94A3B8" />
               </TouchableOpacity>
@@ -451,7 +580,7 @@ export default function Register() {
 
             <Field label="Date of Birth">
               <TouchableOpacity style={styles.inputWrap} onPress={() => setDobOpen(true)} activeOpacity={0.8}>
-                <Feather name="calendar" size={16} color="#94A3B8" style={styles.inputIcon} />
+                <Feather name="calendar" size={16} color="#94A3B8" />
                 <Text style={[styles.input, !dobDisplay && { color: "#94A3B8" }]}>
                   {dobDisplay || "DD / MM / YYYY"}
                 </Text>
@@ -461,18 +590,22 @@ export default function Register() {
 
             <Field label="Gender" error={errors.gender}>
               <TouchableOpacity style={[styles.inputWrap, !!errors.gender && styles.inputError]} onPress={() => setGenderOpen(true)} activeOpacity={0.8}>
-                <Feather name="lock" size={16} color="#94A3B8" style={styles.inputIcon} />
+                <Feather name="user-check" size={16} color="#94A3B8" />
                 <Text style={[styles.input, !gender && { color: "#94A3B8" }]}>{gender || "Select gender"}</Text>
                 <Feather name="chevron-down" size={16} color="#94A3B8" />
               </TouchableOpacity>
             </Field>
+          </>
+        )}
 
-            {/* ── Security ── */}
-            <Text style={[styles.sectionHeader, { marginTop: 6 }]}>Security</Text>
+        {/* ── Step 2: Security ── */}
+        {step === 2 && (
+          <>
+            <Text style={styles.sectionHeader}>Choose a Password</Text>
 
             <Field label="Password" error={errors.password}>
               <View style={[styles.inputWrap, !!errors.password && styles.inputError]}>
-                <Feather name="lock" size={16} color="#94A3B8" style={styles.inputIcon} />
+                <Feather name="lock" size={16} color="#94A3B8" />
                 <TextInput
                   style={styles.input} placeholder="Enter password" placeholderTextColor="#94A3B8"
                   value={password} onChangeText={setPassword}
@@ -489,7 +622,7 @@ export default function Register() {
 
             <Field label="Confirm Password" error={errors.confirm}>
               <View style={[styles.inputWrap, !!errors.confirm && styles.inputError]}>
-                <Feather name="lock" size={16} color="#94A3B8" style={styles.inputIcon} />
+                <Feather name="lock" size={16} color="#94A3B8" />
                 <TextInput
                   style={styles.input} placeholder="Confirm password" placeholderTextColor="#94A3B8"
                   value={confirm} onChangeText={setConfirm}
@@ -500,6 +633,15 @@ export default function Register() {
                 </TouchableOpacity>
               </View>
             </Field>
+
+            {/* Password strength tips */}
+            <View style={styles.tipsCard}>
+              <Text style={styles.tipsTitle}>Make it strong</Text>
+              <TipRow ok={password.length >= 8}                       text="At least 8 characters" />
+              <TipRow ok={/[A-Z]/.test(password) && /[a-z]/.test(password)} text="Upper & lower case letters" />
+              <TipRow ok={/\d/.test(password)}                        text="At least one number" />
+              <TipRow ok={/[!@#$%^&*(),.?":{}|<>_\-\[\]\\\/+=']/.test(password)} text="At least one special character" />
+            </View>
 
             {/* Security note */}
             <View style={styles.securityNote}>
@@ -512,9 +654,11 @@ export default function Register() {
               </View>
             </View>
           </>
-        ) : (
+        )}
+
+        {/* ── Step 3: Preferences ── */}
+        {step === 3 && (
           <>
-            {/* ── Where did you hear about us ── */}
             <Text style={styles.sectionHeader}>Where did you hear about us?</Text>
             <Text style={styles.selectAll}>Select all that apply</Text>
             <View style={styles.checkCard}>
@@ -532,7 +676,6 @@ export default function Register() {
               ))}
             </View>
 
-            {/* ── What are you looking for ── */}
             <Text style={[styles.sectionHeader, { marginTop: 20 }]}>What are you mainly looking for?</Text>
             <Text style={styles.selectAll}>Select all that apply</Text>
             <View style={styles.checkCard}>
@@ -549,14 +692,13 @@ export default function Register() {
               ))}
             </View>
 
-            {/* ── Employment Status ── */}
             <Text style={[styles.sectionHeader, { marginTop: 20 }]}>Your Current Employment Status</Text>
             <TouchableOpacity style={styles.inputWrap} onPress={() => setEmployOpen(true)} activeOpacity={0.8}>
+              <Feather name="briefcase" size={16} color="#94A3B8" />
               <Text style={[styles.input, !employment && { color: "#94A3B8" }, { flex: 1 }]}>{employment || "Select employment status"}</Text>
               <Feather name="chevron-down" size={16} color="#94A3B8" />
             </TouchableOpacity>
 
-            {/* ── Marketing toggle ── */}
             <View style={styles.toggleRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.toggleTitle}>Stay updated with offers & tips</Text>
@@ -569,13 +711,73 @@ export default function Register() {
                 thumbColor="#fff"
               />
             </View>
+          </>
+        )}
 
-            {/* Privacy note */}
-            <View style={styles.privacyNote}>
-              <Feather name="lock" size={16} color={BLUE} style={{ marginTop: 1 }} />
+        {/* ── Step 4: Review & Confirm ── */}
+        {step === 4 && (
+          <>
+            <Text style={styles.sectionHeader}>Review Your Details</Text>
+            <View style={styles.reviewCard}>
+              <ReviewRow icon="user"        label="Full Name"      value={fullName} />
+              <ReviewRow icon="mail"        label="Email"          value={email} />
+              <ReviewRow icon="phone"       label="Phone Number"   value={phoneFull} />
+              <ReviewRow icon="globe"       label="Country"        value={country} />
+              <ReviewRow icon="calendar"    label="Date of Birth"  value={dobDisplay} />
+              <ReviewRow icon="user-check"  label="Gender"         value={gender} />
+              <ReviewRow icon="briefcase"   label="Employment"     value={employment} />
+              <ReviewRow icon="layers"      label="Loan Interests" value={loanPrefsLabel} />
+              <ReviewRow icon="info"        label="Heard via"      value={referralLabel} />
+            </View>
+            <TouchableOpacity style={styles.editLink} onPress={() => goToStep(1)} activeOpacity={0.7}>
+              <Feather name="edit-2" size={13} color={BLUE} />
+              <Text style={styles.editLinkText}>Edit details</Text>
+            </TouchableOpacity>
+
+            <Text style={[styles.sectionHeader, { marginTop: 22 }]}>Agreements</Text>
+
+            <TouchableOpacity
+              style={[styles.consentRow, acceptTerms && styles.consentRowOn]}
+              onPress={() => setAcceptTerms(!acceptTerms)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.bigCheck, acceptTerms && styles.bigCheckOn]}>
+                {acceptTerms && <Feather name="check" size={14} color="#fff" />}
+              </View>
+              <Text style={styles.consentText}>
+                I have read and agree to the{" "}
+                <Text style={styles.consentLink} onPress={() => setTermsModal("terms")}>Terms & Conditions</Text>
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.consentRow, acceptPrivacy && styles.consentRowOn]}
+              onPress={() => setAcceptPrivacy(!acceptPrivacy)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.bigCheck, acceptPrivacy && styles.bigCheckOn]}>
+                {acceptPrivacy && <Feather name="check" size={14} color="#fff" />}
+              </View>
+              <Text style={styles.consentText}>
+                I accept the{" "}
+                <Text style={styles.consentLink} onPress={() => setTermsModal("privacy")}>Privacy Policy</Text>
+              </Text>
+            </TouchableOpacity>
+
+            {!canSubmit && (
+              <View style={styles.warnRow}>
+                <Feather name="alert-circle" size={14} color="#D97706" />
+                <Text style={styles.warnText}>Please accept both agreements to create your account.</Text>
+              </View>
+            )}
+
+            <View style={[styles.securityNote, { marginTop: 16 }]}>
+              <View style={[styles.secNoteIcon, { backgroundColor: "#DCFCE7" }]}>
+                <Feather name="check-circle" size={18} color="#16A34A" />
+              </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.privacyTitle}>We respect your privacy</Text>
-                <Text style={styles.privacySub}>We never share your information with third parties.</Text>
+                <Text style={styles.secNoteTitle}>You're all set!</Text>
+                <Text style={styles.secNoteSub}>Tap "Create Account" below to finish signing up and start exploring LoanGo.</Text>
               </View>
             </View>
           </>
@@ -584,31 +786,41 @@ export default function Register() {
 
       {/* Bottom action */}
       <View style={[styles.bottom, { paddingBottom: botPad }]}>
-        {step === 1 ? (
+        {step < 4 ? (
           <TouchableOpacity style={styles.primaryBtn} onPress={handleNext} activeOpacity={0.88}>
-            <LinearGradient colors={[BLUE, "#3B6FEF"]} style={styles.primaryGrad}>
-              <Text style={styles.primaryText}>Next</Text>
+            <LinearGradient colors={[BLUE, BLUE_MID]} style={styles.primaryGrad}>
+              <Text style={styles.primaryText}>Continue</Text>
+              <Feather name="arrow-right" size={17} color="#fff" />
             </LinearGradient>
           </TouchableOpacity>
         ) : (
-          <>
-            <TouchableOpacity style={styles.primaryBtn} onPress={handleCreate} activeOpacity={0.88}>
-              <LinearGradient colors={[BLUE, "#3B6FEF"]} style={styles.primaryGrad}>
-                <Text style={styles.primaryText}>Create Account</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => { setStep(1); scrollRef.current?.scrollTo({ y: 0, animated: false }); }} style={{ marginTop: 10, alignSelf: "center" }} activeOpacity={0.7}>
-              <Text style={styles.backLink}>Back</Text>
-            </TouchableOpacity>
-          </>
+          <TouchableOpacity
+            style={[styles.primaryBtn, !canSubmit && styles.primaryBtnDisabled]}
+            onPress={handleCreate}
+            activeOpacity={canSubmit ? 0.88 : 1}
+            disabled={!canSubmit}
+          >
+            <LinearGradient
+              colors={canSubmit ? [BLUE, BLUE_MID] : ["#CBD5E1", "#94A3B8"]}
+              style={styles.primaryGrad}
+            >
+              <Text style={styles.primaryText}>Create Account</Text>
+              <Feather name="check" size={17} color="#fff" />
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+
+        {step > 1 && (
+          <TouchableOpacity onPress={handleBack} style={{ marginTop: 10, alignSelf: "center" }} activeOpacity={0.7}>
+            <Text style={styles.backLink}>Back</Text>
+          </TouchableOpacity>
         )}
 
         {/* Page dots */}
         <View style={styles.dots}>
-          {[0, 1, 2, 3].map((i) => {
-            const active = (step === 1 && i === 0) || (step === 2 && i === 1);
-            return <View key={i} style={[styles.dot, active && styles.dotActive]} />;
-          })}
+          {[1, 2, 3, 4].map((i) => (
+            <View key={i} style={[styles.dot, step === i && styles.dotActive]} />
+          ))}
         </View>
       </View>
 
@@ -627,6 +839,22 @@ export default function Register() {
         onDayChange={setDobDay} onMonthChange={setDobMonth} onYearChange={setDobYear}
         onClose={() => setDobOpen(false)}
       />
+      <TermsModal
+        visible={!!termsModal}
+        kind={termsModal || "terms"}
+        onClose={() => setTermsModal(null)}
+      />
+    </View>
+  );
+}
+
+function TipRow({ ok, text }: { ok: boolean; text: string }) {
+  return (
+    <View style={styles.tipRow}>
+      <View style={[styles.tipDot, ok && { backgroundColor: "#16A34A" }]}>
+        {ok && <Feather name="check" size={9} color="#fff" />}
+      </View>
+      <Text style={[styles.tipText, ok && { color: "#16A34A" }]}>{text}</Text>
     </View>
   );
 }
@@ -645,15 +873,18 @@ const styles = StyleSheet.create({
   headerSub: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#64748B" },
   signInLink: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: BLUE },
 
-  title: { fontSize: 26, fontFamily: "Inter_700Bold", color: "#0F172A", lineHeight: 34, marginBottom: 6 },
+  title: { fontSize: 26, fontFamily: "Inter_700Bold", color: "#0F172A", lineHeight: 32, letterSpacing: -0.4, marginBottom: 6 },
   subtitle: { fontSize: 13, fontFamily: "Inter_400Regular", color: "#64748B", lineHeight: 19 },
 
   // Step indicator
-  stepRow: { flexDirection: "row", alignItems: "center", marginBottom: 24 },
-  stepCircle: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
-  stepNum: { color: "#fff", fontFamily: "Inter_700Bold", fontSize: 14 },
-  stepLine: { flex: 1, height: 2, marginHorizontal: 8, marginBottom: 18 },
-  stepLabel: { fontSize: 11, fontFamily: "Inter_500Medium", color: "#94A3B8", marginTop: 5, textAlign: "center" },
+  stepHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+  stepCounter: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: BLUE, letterSpacing: 0.4, textTransform: "uppercase" },
+  stepHeaderLabel: { fontSize: 12, fontFamily: "Inter_500Medium", color: "#64748B" },
+  stepBar: { flexDirection: "row", alignItems: "center" },
+  stepConn: { flex: 1, height: 3, backgroundColor: "#E2E8F0", borderRadius: 2, marginHorizontal: 4 },
+  stepDot: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  stepDotIdle: { backgroundColor: "#F1F5F9", borderWidth: 1.5, borderColor: "#E2E8F0" },
+  stepDotNum: { color: "#fff", fontFamily: "Inter_700Bold", fontSize: 12 },
 
   sectionHeader: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#1E293B", marginBottom: 12 },
   selectAll: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#64748B", marginTop: -8, marginBottom: 10 },
@@ -666,10 +897,9 @@ const styles = StyleSheet.create({
   inputWrap: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: "#F8FAFC", borderRadius: 12, borderWidth: 1.5, borderColor: "#E2E8F0",
-    paddingHorizontal: 14, paddingVertical: isWeb ? 13 : 13, gap: 10,
+    paddingHorizontal: 14, paddingVertical: 13, gap: 10,
   },
   inputError: { borderColor: "#FCA5A5", backgroundColor: "#FFF5F5" },
-  inputIcon: {},
   input: {
     flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", color: "#1E293B",
     paddingVertical: 0,
@@ -680,10 +910,20 @@ const styles = StyleSheet.create({
   phoneCode: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#1E293B" },
   phoneDivider: { width: 1, height: 22, backgroundColor: "#E2E8F0", marginHorizontal: 4 },
 
+  // Tips
+  tipsCard: {
+    backgroundColor: "#F8FAFC", borderRadius: 12, padding: 14, gap: 8,
+    borderWidth: 1, borderColor: "#E2E8F0", marginBottom: 6,
+  },
+  tipsTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#1E293B", marginBottom: 4 },
+  tipRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  tipDot: { width: 14, height: 14, borderRadius: 7, backgroundColor: "#CBD5E1", alignItems: "center", justifyContent: "center" },
+  tipText: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#64748B" },
+
   // Security note
   securityNote: {
     flexDirection: "row", alignItems: "flex-start", gap: 12,
-    backgroundColor: "#F0F5FF", borderRadius: 12, padding: 14, marginTop: 6,
+    backgroundColor: "#F0F5FF", borderRadius: 12, padding: 14, marginTop: 10,
   },
   secNoteIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   secNoteTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#1E293B", marginBottom: 3 },
@@ -709,13 +949,39 @@ const styles = StyleSheet.create({
   toggleTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#1E293B", marginBottom: 3 },
   toggleSub: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#64748B", lineHeight: 17 },
 
-  // Privacy note
-  privacyNote: {
-    flexDirection: "row", alignItems: "flex-start", gap: 10,
-    backgroundColor: "#F0F5FF", borderRadius: 12, padding: 14, marginTop: 12,
+  // Review card
+  reviewCard: {
+    backgroundColor: "#F8FAFC", borderRadius: 14, borderWidth: 1.5, borderColor: "#E2E8F0",
+    paddingVertical: 4,
   },
-  privacyTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#1E293B", marginBottom: 3 },
-  privacySub: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#64748B", lineHeight: 17 },
+  reviewRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 14 },
+  reviewIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: "#EEF4FF", alignItems: "center", justifyContent: "center" },
+  reviewLabel: { fontSize: 11, fontFamily: "Inter_500Medium", color: "#94A3B8", letterSpacing: 0.3, textTransform: "uppercase" },
+  reviewValue: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#1E293B", marginTop: 2 },
+  editLink: { flexDirection: "row", alignItems: "center", alignSelf: "flex-end", gap: 6, marginTop: 8, paddingVertical: 6, paddingHorizontal: 4 },
+  editLinkText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: BLUE },
+
+  // Consent rows (Terms / Privacy)
+  consentRow: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    backgroundColor: "#F8FAFC", borderRadius: 14, borderWidth: 1.5, borderColor: "#E2E8F0",
+    padding: 14, marginBottom: 10,
+  },
+  consentRowOn: { backgroundColor: "#F0F5FF", borderColor: "#C7DEFF" },
+  bigCheck: {
+    width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: "#CBD5E1",
+    alignItems: "center", justifyContent: "center", backgroundColor: "#fff",
+  },
+  bigCheckOn: { backgroundColor: BLUE, borderColor: BLUE },
+  consentText: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", color: "#374151", lineHeight: 18 },
+  consentLink: { color: BLUE, fontFamily: "Inter_600SemiBold", textDecorationLine: "underline" },
+
+  warnRow: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "#FEF3C7", borderRadius: 10, padding: 10,
+    borderWidth: 1, borderColor: "#FDE68A",
+  },
+  warnText: { flex: 1, fontSize: 12, fontFamily: "Inter_500Medium", color: "#92400E" },
 
   // Bottom bar
   bottom: {
@@ -723,7 +989,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#F1F5F9",
   },
   primaryBtn: { borderRadius: 14, overflow: "hidden" },
-  primaryGrad: { paddingVertical: 15, alignItems: "center" },
+  primaryBtnDisabled: { opacity: 0.9 },
+  primaryGrad: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 15 },
   primaryText: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 0.3 },
   backLink: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: BLUE, textAlign: "center" },
   dots: { flexDirection: "row", gap: 6, justifyContent: "center", marginTop: 14 },
@@ -741,6 +1008,22 @@ const styles = StyleSheet.create({
   sheetTitle: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#1E293B", textAlign: "center", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
   sheetItem: { flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: "#F8FAFC" },
   sheetItemText: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", color: "#1E293B" },
+
+  // Terms modal
+  termsHeader: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    paddingHorizontal: 20, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: "#F1F5F9",
+  },
+  termsHeaderIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: "#EEF4FF", alignItems: "center", justifyContent: "center" },
+  termsHeaderTitle: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#0F172A" },
+  termsHeaderSub: { fontSize: 11, fontFamily: "Inter_400Regular", color: "#94A3B8", marginTop: 1 },
+  termsClose: { width: 32, height: 32, borderRadius: 10, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" },
+  termsSection: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#0F172A", marginBottom: 4 },
+  termsBody: { fontSize: 13, fontFamily: "Inter_400Regular", color: "#475569", lineHeight: 19 },
+  termsFooter: { paddingHorizontal: 20, paddingTop: 8, borderTopWidth: 1, borderTopColor: "#F1F5F9" },
+  termsAccept: { backgroundColor: BLUE, borderRadius: 12, paddingVertical: 13, alignItems: "center" },
+  termsAcceptText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" },
 
   // DOB modal
   dobLabel: { fontSize: 12, fontFamily: "Inter_500Medium", color: "#64748B", marginBottom: 6 },
