@@ -15,6 +15,7 @@ function RootLayoutNav() {
   return (
     <Stack screenOptions={{ headerShown: false }} initialRouteName="onboarding">
       <Stack.Screen name="onboarding"   options={{ headerShown: false }} />
+      <Stack.Screen name="login"        options={{ headerShown: false, animation: "slide_from_right" }} />
       <Stack.Screen name="register"     options={{ headerShown: false, animation: "slide_from_right" }} />
       <Stack.Screen name="(tabs)"       options={{ headerShown: false }} />
       <Stack.Screen name="all-offers"   options={{ headerShown: false, animation: "slide_from_right" }} />

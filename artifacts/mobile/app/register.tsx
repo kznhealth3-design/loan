@@ -349,7 +349,7 @@ export default function Register() {
     );
   };
 
-  const goSignIn = () => router.replace("/(tabs)");
+  const goSignIn = () => router.replace("/login");
 
   const topPad = insets.top + (isWeb ? 8 : 4);
   const botPad = insets.bottom + 16;
