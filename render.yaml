@@ -12,8 +12,10 @@ services:
         value: production
       - key: PORT
         value: 8080
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_fmF0cWY4LqPl@ep-muddy-recipe-aq4i0i8k-pooler.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
       - key: SESSION_SECRET
-        generateValue: true
+        value: 134dc9601b8f28af7454a2b4b4ff84117530096ad45cc2015fb909a4ff17f55b
       - key: FRONTEND_URL
         value: https://loango-frontend.vercel.app
 
