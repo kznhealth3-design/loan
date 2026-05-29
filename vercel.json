@@ -1,6 +1,11 @@
 {
   "version": 2,
-  "outputDirectory": "artifacts/mobile/dist",
+  "builds": [
+    {
+      "src": "artifacts/mobile/dist/index.html",
+      "use": "@vercel/static"
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
