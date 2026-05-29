@@ -45,6 +45,23 @@ app.use(cors({
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// CSRF defense-in-depth: because the session cookie is SameSite=None in
+// production, reject state-changing requests whose Origin header is present but
+// not in our allow-list. CORS blocks reading responses but simple requests
+// still reach the server, so this guards the actual mutation.
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+app.use((req, res, next) => {
+  if (MUTATING_METHODS.has(req.method)) {
+    const origin = req.headers.origin;
+    if (origin && !allowedOrigins.includes(origin)) {
+      res.status(403).json({ error: "Origin not allowed" });
+      return;
+    }
+  }
+  next();
+});
+
 app.use(authMiddleware);
 
 app.use("/api", router);

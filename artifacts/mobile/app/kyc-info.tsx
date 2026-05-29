@@ -20,8 +20,8 @@ import { useToast } from "@/lib/toast";
 import {
   useCreateKycUploadUrl,
   useRecordKycDocument,
-  useListMyKycDocuments,
-  getListMyKycDocumentsQueryKey,
+  useListKycDocuments,
+  getListKycDocumentsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -170,7 +170,7 @@ function DocUploadModal({
       await recordDoc.mutateAsync({
         data: { docType: doc.key, objectKey },
       });
-      await queryClient.invalidateQueries({ queryKey: getListMyKycDocumentsQueryKey() });
+      await queryClient.invalidateQueries({ queryKey: getListKycDocumentsQueryKey() });
       setStep("success");
       showToast("Document submitted successfully!", "success");
       setTimeout(() => { onSubmit(); onClose(); }, 1500);
@@ -586,10 +586,10 @@ export default function KYCInfoScreen() {
   const [activeDoc,  setActiveDoc]  = useState<DocItem | null>(null);
 
   // Track submission state per doc
-  const { data: kycDocs } = useListMyKycDocuments();
+  const { data: kycDocs } = useListKycDocuments();
 
   const getDocStatus = (key: string): DocStatus => {
-    const doc = kycDocs?.find((d) => d.docType === key);
+    const doc = kycDocs?.find((d: { docType: string; status: string }) => d.docType === key);
     if (!doc) return "not_submitted";
     if (doc.status === "approved") return "completed";
     return "pending";

@@ -19,12 +19,22 @@ import {
 
 const router: IRouter = Router();
 
+// In production the Vercel frontend and Render API live on different origins,
+// so the session cookie must be SameSite=None + Secure to travel cross-site.
+// In local/dev (plain HTTP) those flags cause the browser to drop the cookie,
+// so fall back to a Lax, non-secure cookie there.
+const IS_PROD = process.env.NODE_ENV === "production";
+
+export const sessionCookieOptions = {
+  httpOnly: true,
+  secure: IS_PROD,
+  sameSite: (IS_PROD ? "none" : "lax") as "none" | "lax",
+  path: "/",
+};
+
 function setSessionCookie(res: Response, sid: string) {
   res.cookie(SESSION_COOKIE, sid, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-    path: "/",
+    ...sessionCookieOptions,
     maxAge: SESSION_TTL,
   });
 }
