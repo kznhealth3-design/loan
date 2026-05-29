@@ -1,10 +1,10 @@
 {
   "version": 2,
   "name": "loango-frontend",
-  "buildCommand": "pnpm install --no-frozen-lockfile && pnpm --filter @workspace/mobile run build && cp -r artifacts/mobile/dist dist",
+  "buildCommand": "npm install -g pnpm@9 && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/mobile run build && cp -r artifacts/mobile/dist dist",
   "outputDirectory": "dist",
   "framework": null,
-  "installCommand": "corepack enable && corepack prepare pnpm@9.15.0 --activate",
+  "installCommand": "echo skip",
   "routes": [
     { "handle": "filesystem" },
     { "src": "/_expo/static/(.*)", "dest": "/_expo/static/$1" },
