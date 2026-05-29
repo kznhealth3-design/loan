@@ -14,7 +14,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { loginRedirect } from "@/lib/auth";
+import { useLoginUser } from "@workspace/api-client-react";
+import { useAuth } from "@/lib/auth";
 
 const BLUE = "#1E56E5";
 const BLUE_MID = "#3B6FEF";
@@ -24,23 +25,39 @@ const isWeb = Platform.OS === "web";
 
 export default function Login() {
   const insets = useSafeAreaInsets();
+  const { refetch } = useAuth();
+  const loginMutation = useLoginUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [remember, setRemember] = useState(true);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [authError, setAuthError] = useState<string | null>(null);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
 
-  const handleLogin = () => {
-    // Replit Auth (OIDC) handles the actual credentials. The email/password
-    // fields are decorative — pressing Sign In starts the OIDC redirect flow.
-    loginRedirect("/");
+  const handleLogin = async () => {
+    setAuthError(null);
+    const next: { email?: string; password?: string } = {};
+    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) next.email = "Enter a valid email address";
+    if (!password) next.password = "Enter your password";
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
+
+    try {
+      await loginMutation.mutateAsync({
+        data: { email: email.trim().toLowerCase(), password },
+      });
+      refetch();
+      router.replace("/");
+    } catch {
+      setAuthError("Invalid email or password. Please try again.");
+    }
   };
 
   const handleSso = () => {
-    loginRedirect("/");
+    router.push("/register");
   };
 
   const closeForgot = () => {
@@ -148,10 +165,24 @@ export default function Login() {
           </TouchableOpacity>
         </View>
 
+        {!!authError && (
+          <View style={s.authErrorBox}>
+            <Feather name="alert-circle" size={14} color="#DC2626" />
+            <Text style={s.authErrorText}>{authError}</Text>
+          </View>
+        )}
+
         {/* Sign In button */}
-        <TouchableOpacity onPress={handleLogin} activeOpacity={0.88} style={{ marginTop: 22 }}>
+        <TouchableOpacity
+          onPress={handleLogin}
+          activeOpacity={0.88}
+          style={{ marginTop: 22 }}
+          disabled={loginMutation.isPending}
+        >
           <LinearGradient colors={[BLUE, BLUE_MID]} style={s.primaryBtn}>
-            <Text style={s.primaryText}>Sign In</Text>
+            <Text style={s.primaryText}>
+              {loginMutation.isPending ? "Signing In…" : "Sign In"}
+            </Text>
             <Feather name="arrow-right" size={17} color="#fff" />
           </LinearGradient>
         </TouchableOpacity>
@@ -291,6 +322,8 @@ const s = StyleSheet.create({
     ...(isWeb ? { outlineStyle: "none" } as any : {}),
   },
   errorText: { fontSize: 11, fontFamily: "Inter_400Regular", color: "#EF4444", marginTop: 4 },
+  authErrorBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#FEF2F2", borderColor: "#FECACA", borderWidth: 1, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginTop: 16 },
+  authErrorText: { flex: 1, fontSize: 12.5, fontFamily: "Inter_500Medium", color: "#DC2626" },
 
   optionsRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 16 },
   rememberRow: { flexDirection: "row", alignItems: "center", gap: 8 },

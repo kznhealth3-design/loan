@@ -246,11 +246,7 @@ paths:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              required: [emiPaymentId]
-              properties:
-                emiPaymentId: { type: string, minLength: 1 }
+            schema: { $ref: '#/components/schemas/CheckoutSessionInput' }
       responses:
         '200':
           description: Checkout session URL
@@ -519,6 +515,11 @@ components:
           type: array
           items: { $ref: '#/components/schemas/EmiPayment' }
 
+    CheckoutSessionInput:
+      type: object
+      required: [emiPaymentId]
+      properties:
+        emiPaymentId: { type: string, minLength: 1 }
     CheckoutSession:
       type: object
       required: [url]

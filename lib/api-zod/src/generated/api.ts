@@ -35,56 +35,50 @@ export const GetCurrentAuthUserResponse = zod.object({
 
 
 /**
- * @summary Start the browser OIDC login flow
+ * @summary Create a new user account with email and password
  */
-export const BeginBrowserLoginQueryParams = zod.object({
-  "returnTo": zod.coerce.string().optional()
+export const registerUserBodyPasswordMin = 8;
+
+
+
+export const RegisterUserBody = zod.object({
+  "email": zod.string().email(),
+  "password": zod.string().min(registerUserBodyPasswordMin),
+  "firstName": zod.string().optional(),
+  "lastName": zod.string().optional()
 })
 
 
 /**
- * @summary Complete the browser OIDC login flow
+ * @summary Authenticate with email and password
  */
-export const HandleBrowserLoginCallbackQueryParams = zod.object({
-  "code": zod.coerce.string().optional(),
-  "state": zod.coerce.string().optional(),
-  "iss": zod.coerce.string().url().optional()
+
+
+
+export const LoginUserBody = zod.object({
+  "email": zod.string().email(),
+  "password": zod.string().min(1)
+})
+
+export const LoginUserResponse = zod.object({
+  "user": zod.union([zod.object({
+  "id": zod.string(),
+  "email": zod.string().email().nullable(),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "profileImageUrl": zod.string().nullable()
+}),zod.null()])
 })
 
 
 /**
- * @summary Clear the session and begin OIDC logout
+ * @summary Destroy the current session
  */
-export const LogoutBrowserSessionHeader = zod.object({
+export const LogoutUserHeader = zod.object({
   "Authorization": zod.string().optional()
 })
 
-
-
-
-
-
-
-
-
-export const ExchangeMobileAuthorizationCodeBody = zod.object({
-  "code": zod.string().min(1),
-  "code_verifier": zod.string().min(1),
-  "redirect_uri": zod.string().url().min(1),
-  "state": zod.string().min(1),
-  "nonce": zod.string().min(1).optional()
-})
-
-export const ExchangeMobileAuthorizationCodeResponse = zod.object({
-  "token": zod.string()
-})
-
-
-export const LogoutMobileSessionHeader = zod.object({
-  "Authorization": zod.string().optional()
-})
-
-export const LogoutMobileSessionResponse = zod.object({
+export const LogoutUserResponse = zod.object({
   "success": zod.boolean()
 })
 
@@ -289,11 +283,14 @@ export const GetLoanDetailResponse = zod.object({
 })
 
 
-export const CreateEmiCheckoutSessionParams = zod.object({
-  "id": zod.coerce.string()
+
+
+
+export const CreateCheckoutSessionBody = zod.object({
+  "emiPaymentId": zod.string().min(1)
 })
 
-export const CreateEmiCheckoutSessionResponse = zod.object({
+export const CreateCheckoutSessionResponse = zod.object({
   "url": zod.string().url(),
   "sessionId": zod.string().optional()
 })
@@ -326,7 +323,7 @@ export const MarkNotificationReadResponse = zod.object({
 })
 
 
-export const ListMyKycDocumentsResponseItem = zod.object({
+export const ListKycDocumentsResponseItem = zod.object({
   "id": zod.string(),
   "userId": zod.string(),
   "docType": zod.string(),
@@ -334,7 +331,7 @@ export const ListMyKycDocumentsResponseItem = zod.object({
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "uploadedAt": zod.coerce.date()
 })
-export const ListMyKycDocumentsResponse = zod.array(ListMyKycDocumentsResponseItem)
+export const ListKycDocumentsResponse = zod.array(ListKycDocumentsResponseItem)
 
 
 

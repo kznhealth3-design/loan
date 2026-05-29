@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { and, desc, eq } from "drizzle-orm";
 import { db, kycDocumentsTable, userProfilesTable } from "@workspace/db";
 import {
-  ListMyKycDocumentsResponse,
+  ListKycDocumentsResponse,
   RecordKycDocumentBody,
   CreateKycUploadUrlBody,
 } from "@workspace/api-zod";
@@ -17,7 +17,7 @@ router.get("/kyc/documents", requireAuth, async (req, res): Promise<void> => {
     .from(kycDocumentsTable)
     .where(eq(kycDocumentsTable.userId, req.user!.id))
     .orderBy(desc(kycDocumentsTable.uploadedAt));
-  res.json(ListMyKycDocumentsResponse.parse(items));
+  res.json(ListKycDocumentsResponse.parse(items));
 });
 
 router.post("/kyc/documents", requireAuth, async (req, res): Promise<void> => {

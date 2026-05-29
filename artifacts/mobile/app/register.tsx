@@ -16,6 +16,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRegisterUser } from "@workspace/api-client-react";
+import { useAuth } from "@/lib/auth";
 
 const BLUE = "#1E56E5";
 const BLUE_MID = "#3B6FEF";
@@ -371,6 +373,8 @@ function ReviewRow({ icon, label, value }: { icon: string; label: string; value:
 
 export default function Register() {
   const insets = useSafeAreaInsets();
+  const { refetch } = useAuth();
+  const registerMutation = useRegisterUser();
   const scrollRef = useRef<ScrollView>(null);
   const [step, setStep] = useState<Step>(1);
 
@@ -471,19 +475,29 @@ export default function Register() {
     else router.back();
   };
 
-  const handleCreate = () => {
-    if (!canSubmit) return;
-    // Account creation is delegated to Replit Auth (OIDC). Redirect into the
-    // login flow; user lands back at /mobile/ post-callback.
-    if (Platform.OS === "web" && typeof window !== "undefined") {
-      window.location.href = `/api/login?returnTo=${encodeURIComponent("/")}`;
-      return;
+  const handleCreate = async () => {
+    if (!canSubmit || registerMutation.isPending) return;
+
+    try {
+      await registerMutation.mutateAsync({
+        data: {
+          email: email.trim().toLowerCase(),
+          password,
+          firstName: firstName.trim() || undefined,
+          lastName: lastName.trim() || undefined,
+        },
+      });
+      refetch();
+      router.replace("/");
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      Alert.alert(
+        "Could Not Create Account",
+        status === 409
+          ? "An account with this email already exists. Please sign in instead."
+          : "Something went wrong creating your account. Please try again.",
+      );
     }
-    Alert.alert(
-      "Sign In Required",
-      "Account creation happens via secure sign-in.",
-      [{ text: "OK", onPress: () => router.replace("/login") }]
-    );
   };
 
   const goSignIn = () => router.replace("/login");
@@ -801,16 +815,18 @@ export default function Register() {
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[styles.primaryBtn, !canSubmit && styles.primaryBtnDisabled]}
+            style={[styles.primaryBtn, (!canSubmit || registerMutation.isPending) && styles.primaryBtnDisabled]}
             onPress={handleCreate}
             activeOpacity={canSubmit ? 0.88 : 1}
-            disabled={!canSubmit}
+            disabled={!canSubmit || registerMutation.isPending}
           >
             <LinearGradient
               colors={canSubmit ? [BLUE, BLUE_MID] : ["#CBD5E1", "#94A3B8"]}
               style={styles.primaryGrad}
             >
-              <Text style={styles.primaryText}>Create Account</Text>
+              <Text style={styles.primaryText}>
+                {registerMutation.isPending ? "Creating Account…" : "Create Account"}
+              </Text>
               <Feather name="check" size={17} color="#fff" />
             </LinearGradient>
           </TouchableOpacity>

@@ -16,7 +16,9 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useLogoutUser } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { useAuth } from "@/lib/auth";
 
 // ─── Shared Bottom Sheet Shell ────────────────────────────────────────────────
 function Sheet({
@@ -786,6 +788,9 @@ export default function MoreScreen() {
   const isWeb = Platform.OS === "web";
   const topPad = isWeb ? 67 : insets.top;
 
+  const { refetch } = useAuth();
+  const logoutMutation = useLogoutUser();
+
   const [modal, setModal] = useState<ModalKey>(null);
   const [showLogout, setShowLogout] = useState(false);
   const open = (m: ModalKey) => setModal(m);
@@ -793,8 +798,14 @@ export default function MoreScreen() {
 
   const confirmLogout = () => setShowLogout(true);
 
-  const doLogout = () => {
+  const doLogout = async () => {
     setShowLogout(false);
+    try {
+      await logoutMutation.mutateAsync();
+    } catch {
+      // Even if the server call fails, clear local state and move on.
+    }
+    refetch();
     router.replace("/onboarding");
   };
 
