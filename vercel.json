@@ -4,7 +4,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://loango-api.onrender.com/api/$1"
+      "destination": "https://loan-1-iaa2.onrender.com/api/$1"
     }
   ]
 }

@@ -28,6 +28,8 @@ app.use(
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   "https://loango.vercel.app",
+  "https://loango-frontend.vercel.app",
+  "https://loan-1-iaa2.onrender.com",
   "http://localhost:3000",
   "http://localhost:8081",
 ].filter(Boolean);
