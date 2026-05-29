@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
 // React.useMemo is referenced below via the default React import.
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Platform,
@@ -372,10 +373,10 @@ export default function MyLoansScreen() {
   const [detailsLoan, setDetailsLoan] = useState<Loan | null>(null);
   const [payLoan, setPayLoan] = useState<Loan | null>(null);
 
-  const loansQuery = useListMyLoans();
+  const { data: loansData, isLoading: loansLoading, isError: loansError, refetch: loansRefetch } = useListMyLoans();
   const all = React.useMemo(
-    () => (loansQuery.data ?? []).map(mapLoan),
-    [loansQuery.data],
+    () => (loansData ?? []).map(mapLoan),
+    [loansData],
   );
   const activeAll = React.useMemo(() => all.filter((l) => l.status !== "Closed"), [all]);
   const closedAll = React.useMemo(() => all.filter((l) => l.status === "Closed"), [all]);
@@ -416,14 +417,47 @@ export default function MyLoansScreen() {
         </View>
 
         <View style={{ padding: 16, gap: 12 }}>
-          {loans.map((loan) => (
-            <LoanCard
-              key={loan.id}
-              loan={loan}
-              onDetails={() => setDetailsLoan(loan)}
-              onPay={() => loan.status !== "Closed" && setPayLoan(loan)}
-            />
-          ))}
+          {loansLoading ? (
+            <View style={{ alignItems: "center", paddingVertical: 40 }}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={{ color: colors.mutedForeground, marginTop: 12, fontSize: 14 }}>Loading your loans…</Text>
+            </View>
+          ) : loansError ? (
+            <View style={{ alignItems: "center", paddingVertical: 40, gap: 12 }}>
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: "#FEE2E2", alignItems: "center", justifyContent: "center" }}>
+                <Feather name="alert-circle" size={26} color="#EF4444" />
+              </View>
+              <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 15 }}>Could not load loans</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 13, textAlign: "center" }}>Check your connection and try again.</Text>
+              <TouchableOpacity
+                style={{ marginTop: 4, backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 20, paddingVertical: 9 }}
+                onPress={() => loansRefetch()}
+              >
+                <Text style={{ color: "#fff", fontWeight: "600", fontSize: 14 }}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : loans.length === 0 ? (
+            <View style={{ alignItems: "center", paddingVertical: 40, gap: 12 }}>
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
+                <Feather name="inbox" size={26} color="#4F46E5" />
+              </View>
+              <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 15 }}>
+                {activeTab === "active" ? "No active loans" : "No closed loans"}
+              </Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 13, textAlign: "center" }}>
+                {activeTab === "active" ? "Apply for a loan below to get started." : "Your paid-off loans will appear here."}
+              </Text>
+            </View>
+          ) : (
+            loans.map((loan) => (
+              <LoanCard
+                key={loan.id}
+                loan={loan}
+                onDetails={() => setDetailsLoan(loan)}
+                onPay={() => loan.status !== "Closed" && setPayLoan(loan)}
+              />
+            ))
+          )}
         </View>
 
         <View style={[styles.newLoanBanner, { backgroundColor: "#EEF2FF", marginHorizontal: 16, borderColor: "#C7D2FE" }]}>

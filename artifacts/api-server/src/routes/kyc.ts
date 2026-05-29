@@ -7,6 +7,7 @@ import {
   CreateKycUploadUrlBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../lib/requireAuth";
+import { generateKycUploadUrl } from "../lib/kycStorage";
 
 const router: IRouter = Router();
 
@@ -25,32 +26,63 @@ router.post("/kyc/documents", requireAuth, async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [doc] = await db
-    .insert(kycDocumentsTable)
-    .values({
+
+  const existing = await db
+    .select()
+    .from(kycDocumentsTable)
+    .where(eq(kycDocumentsTable.userId, req.user!.id));
+
+  const alreadyHasType = existing.some((d) => d.docType === parsed.data.docType);
+  if (alreadyHasType) {
+    await db
+      .update(kycDocumentsTable)
+      .set({ objectKey: parsed.data.objectKey, status: "pending" })
+      .where(eq(kycDocumentsTable.userId, req.user!.id));
+  } else {
+    await db.insert(kycDocumentsTable).values({
       userId: req.user!.id,
       docType: parsed.data.docType,
       objectKey: parsed.data.objectKey,
-      status: "approved",
-    })
-    .returning();
+      status: "pending",
+    });
+  }
 
-  await db
-    .update(userProfilesTable)
-    .set({ kycCompleted: true })
-    .where(eq(userProfilesTable.userId, req.user!.id));
+  const allDocs = await db
+    .select()
+    .from(kycDocumentsTable)
+    .where(eq(kycDocumentsTable.userId, req.user!.id));
+
+  const docTypes = new Set(allDocs.map((d) => d.docType));
+  if (docTypes.has("identity") && docTypes.has("address") && docTypes.has("selfie")) {
+    await db
+      .update(userProfilesTable)
+      .set({ kycCompleted: true })
+      .where(eq(userProfilesTable.userId, req.user!.id));
+  }
+
+  const [doc] = await db
+    .select()
+    .from(kycDocumentsTable)
+    .where(eq(kycDocumentsTable.userId, req.user!.id))
+    .orderBy(desc(kycDocumentsTable.uploadedAt))
+    .limit(1);
 
   res.status(201).json(doc);
 });
 
-// Object storage upload URL - implemented in M3
 router.post("/kyc/upload-url", requireAuth, async (req, res): Promise<void> => {
   const parsed = CreateKycUploadUrlBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  res.status(501).json({ error: "Object storage upload not yet configured" });
+  try {
+    const { uploadUrl, objectKey } = await generateKycUploadUrl();
+    res.json({ uploadUrl, objectKey });
+  } catch (err) {
+    req.log.error({ err }, "Failed to generate KYC upload URL");
+    res.status(500).json({ error: "Failed to generate upload URL" });
+  }
 });
 
 export default router;

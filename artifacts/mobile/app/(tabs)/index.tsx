@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
+import { useListMyNotifications } from "@workspace/api-client-react";
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 const ACTIVE_LOANS = [
@@ -456,6 +457,9 @@ export default function DashboardScreen() {
   const isWeb = Platform.OS === "web";
   const topPad = isWeb ? 67 : insets.top;
 
+  const { data: notifs } = useListMyNotifications();
+  const unreadCount = notifs?.filter((n) => !n.read).length ?? 0;
+
   const [loanTab,       setLoanTab]       = useState<LoanTab>("active");
   const [showNotif,     setShowNotif]     = useState(false);
   const [showWithdraw,  setShowWithdraw]  = useState(false);
@@ -497,9 +501,9 @@ export default function DashboardScreen() {
         </View>
         <View style={s.headerRight}>
           <TouchableOpacity style={[s.bellBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-            onPress={() => setShowNotif(true)}>
+            onPress={() => router.push("/notifications" as any)}>
             <Feather name="bell" size={18} color={colors.foreground} />
-            <View style={s.notifDot} />
+            {unreadCount > 0 && <View style={s.notifDot} />}
           </TouchableOpacity>
           <TouchableOpacity onPress={() => router.push("/(tabs)/more")}>
             <View style={[s.avatar, { backgroundColor: "#4F46E5" }]}>

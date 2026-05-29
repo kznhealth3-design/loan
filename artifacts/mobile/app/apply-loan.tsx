@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useColors } from "@/hooks/useColors";
+import { useToast } from "@/lib/toast";
 import {
   useCreateLoanApplication,
   getListMyLoansQueryKey,
@@ -394,6 +395,7 @@ export default function ApplyLoanScreen() {
   const processingFee = params.processingFee || "1.00% onwards";
   const offerId = typeof params.offerId === "string" ? params.offerId : "";
 
+  const { showToast } = useToast();
   const [step, setStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
   const qc = useQueryClient();
@@ -404,9 +406,10 @@ export default function ApplyLoanScreen() {
         // new Loan. Invalidate both lists so My Loans reflects the change.
         qc.invalidateQueries({ queryKey: getListMyLoansQueryKey() });
         qc.invalidateQueries({ queryKey: getListMyLoanApplicationsQueryKey() });
+        showToast("Application submitted successfully!", "success");
         setSubmitted(true);
       },
-      onError: (err) => alert(err.message || "Could not submit application"),
+      onError: (err) => showToast(err.message || "Could not submit application", "error"),
     },
   });
 

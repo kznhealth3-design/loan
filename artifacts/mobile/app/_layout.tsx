@@ -12,6 +12,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/lib/auth";
 import { queryClient } from "@/lib/queryClient";
 import { initApiClient } from "@/lib/api-init";
+import { ToastProvider } from "@/lib/toast";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -25,7 +26,8 @@ function RootLayoutNav() {
       <Stack.Screen name="all-offers"   options={{ headerShown: false, animation: "slide_from_right" }} />
       <Stack.Screen name="apply-loan"   options={{ headerShown: false, animation: "slide_from_right" }} />
       <Stack.Screen name="loan-detail"  options={{ headerShown: false, animation: "slide_from_right" }} />
-      <Stack.Screen name="kyc-info"     options={{ headerShown: false, animation: "slide_from_right" }} />
+      <Stack.Screen name="kyc-info"       options={{ headerShown: false, animation: "slide_from_right" }} />
+      <Stack.Screen name="notifications"  options={{ headerShown: false, animation: "slide_from_right" }} />
     </Stack>
   );
 }
@@ -56,7 +58,9 @@ export default function RootLayout() {
           <ErrorBoundary>
             <GestureHandlerRootView>
               <KeyboardProvider>
-                <RootLayoutNav />
+                <ToastProvider>
+                  <RootLayoutNav />
+                </ToastProvider>
               </KeyboardProvider>
             </GestureHandlerRootView>
           </ErrorBoundary>

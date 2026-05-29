@@ -1,7 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Platform,
@@ -15,6 +16,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
+import { useToast } from "@/lib/toast";
+import {
+  useCreateKycUploadUrl,
+  useRecordKycDocument,
+  useListMyKycDocuments,
+  getListMyKycDocumentsQueryKey,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DocStatus = "completed" | "not_submitted" | "pending";
@@ -108,14 +117,66 @@ function DocUploadModal({
     doc.key === "address"  ? ADDR_OPTIONS :
     SELFIE_OPTIONS;
 
-  const simulateUpload = () => {
-    setStep("upload");
-    setTimeout(() => setStep("confirm"), 1800);
+  const [fileData, setFileData] = useState<{ name: string; type: string; data: ArrayBuffer } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { showToast } = useToast();
+  const queryClient = useQueryClient();
+
+  const createUploadUrl = useCreateKycUploadUrl();
+  const recordDoc = useRecordKycDocument();
+
+  const triggerFilePicker = () => {
+    if (Platform.OS === "web" && fileInputRef.current) {
+      fileInputRef.current.click();
+    } else {
+      Alert.alert("Upload", "File upload is available in the web version.");
+    }
   };
 
-  const confirmSubmit = () => {
-    setStep("success");
-    setTimeout(() => { onSubmit(); onClose(); }, 1500);
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      setFileData({ name: file.name, type: file.type || "application/octet-stream", data: evt.target?.result as ArrayBuffer });
+      setStep("confirm");
+    };
+    reader.readAsArrayBuffer(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleSelectAndUpload = () => {
+    if (!selected) return;
+    triggerFilePicker();
+    setStep("upload");
+  };
+
+  const confirmSubmit = async () => {
+    if (!fileData) return;
+    setUploading(true);
+    try {
+      const { uploadUrl, objectKey } = await createUploadUrl.mutateAsync({
+        data: { docType: doc.key, contentType: fileData.type },
+      });
+      await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": fileData.type },
+        body: fileData.data,
+      });
+      await recordDoc.mutateAsync({
+        data: { docType: doc.key, objectKey },
+      });
+      await queryClient.invalidateQueries({ queryKey: getListMyKycDocumentsQueryKey() });
+      setStep("success");
+      showToast("Document submitted successfully!", "success");
+      setTimeout(() => { onSubmit(); onClose(); }, 1500);
+    } catch {
+      showToast("Upload failed. Please try again.", "error");
+      setStep("select");
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -179,9 +240,18 @@ function DocUploadModal({
                 ))}
               </View>
 
+              {Platform.OS === "web" && (
+                <input
+                  ref={fileInputRef as any}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  style={{ display: "none" } as any}
+                  onChange={handleFileSelected as any}
+                />
+              )}
               <TouchableOpacity
                 style={[du.primaryBtn, { backgroundColor: selected ? "#4F46E5" : "#9CA3AF" }]}
-                onPress={selected ? simulateUpload : undefined}
+                onPress={selected ? handleSelectAndUpload : undefined}
                 disabled={!selected}
               >
                 <Feather name={doc.key === "selfie" ? "camera" : "upload"} size={16} color="#fff" />
@@ -239,9 +309,17 @@ function DocUploadModal({
                 ))}
               </View>
 
-              <TouchableOpacity style={[du.primaryBtn, { backgroundColor: "#4F46E5" }]} onPress={confirmSubmit}>
-                <Feather name="send" size={16} color="#fff" />
-                <Text style={du.primaryBtnText}>Submit Document</Text>
+              <TouchableOpacity
+                style={[du.primaryBtn, { backgroundColor: uploading ? "#818CF8" : "#4F46E5" }]}
+                onPress={confirmSubmit}
+                disabled={uploading}
+              >
+                {uploading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Feather name="send" size={16} color="#fff" />
+                )}
+                <Text style={du.primaryBtnText}>{uploading ? "Uploading…" : "Submit Document"}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[du.ghostBtn, { borderColor: colors.border }]} onPress={() => setStep("select")}>
                 <Text style={[du.ghostBtnText, { color: colors.foreground }]}>Retake / Reupload</Text>
@@ -505,44 +583,45 @@ export default function KYCInfoScreen() {
   const [activeDoc,  setActiveDoc]  = useState<DocItem | null>(null);
 
   // Track submission state per doc
-  const [submitted, setSubmitted] = useState<Record<string, boolean>>({});
+  const { data: kycDocs } = useListMyKycDocuments();
 
-  const getStatus = (key: string, defaultStatus: DocStatus): DocStatus => {
-    if (submitted[key]) return "pending";
-    return defaultStatus;
+  const getDocStatus = (key: string): DocStatus => {
+    const doc = kycDocs?.find((d) => d.docType === key);
+    if (!doc) return "not_submitted";
+    if (doc.status === "approved") return "completed";
+    return "pending";
   };
 
   const KYC_DOCS: DocItem[] = [
     {
-      key: "personal", icon: "user",     label: "Personal Details",
-      sub: "Name, DOB, Address, etc.", status: "completed",
+      key: "personal", icon: "user",       label: "Personal Details",
+      sub: "Name, DOB, Address, etc.",      status: "completed",
     },
     {
       key: "identity", icon: "credit-card", label: "Identity Proof",
-      sub: "Driver's License / US ID Card",
-      status: getStatus("identity", "not_submitted"),
+      sub: "Driver's License / US ID Card", status: getDocStatus("identity"),
     },
     {
-      key: "address", icon: "map-pin", label: "Address Proof",
-      sub: "Utility Bill / Lease Agreement",
-      status: getStatus("address", "not_submitted"),
+      key: "address",  icon: "map-pin",     label: "Address Proof",
+      sub: "Utility Bill / Lease Agreement",status: getDocStatus("address"),
     },
     {
-      key: "selfie", icon: "user", label: "Selfie Verification",
-      sub: "Live selfie with camera",
-      status: getStatus("selfie", "not_submitted"),
+      key: "selfie",   icon: "user",        label: "Selfie Verification",
+      sub: "Live selfie or photo",          status: getDocStatus("selfie"),
     },
   ];
 
-  const allSubmitted = ["identity","address","selfie"].every((k) => submitted[k]);
+  const allSubmitted = ["identity","address","selfie"].every(
+    (k) => getDocStatus(k) !== "not_submitted"
+  );
 
   const handleDocTap = (doc: DocItem) => {
     if (doc.key === "personal") { setShowPD(true); return; }
     setActiveDoc(doc);
   };
 
-  const handleSubmit = (key: string) => {
-    setSubmitted((prev) => ({ ...prev, [key]: true }));
+  const handleSubmit = (_key: string) => {
+    // queryClient already invalidated inside DocUploadModal.confirmSubmit
   };
 
   return (
@@ -590,7 +669,7 @@ export default function KYCInfoScreen() {
             <TouchableOpacity
               style={[main.completeNowBtn, { backgroundColor: "#4F46E5" }]}
               onPress={() => {
-                const first = KYC_DOCS.find((d) => d.key !== "personal" && getStatus(d.key, "not_submitted") === "not_submitted");
+                const first = KYC_DOCS.find((d) => d.key !== "personal" && getDocStatus(d.key) === "not_submitted");
                 if (first) setActiveDoc(first);
               }}
             >
@@ -610,7 +689,8 @@ export default function KYCInfoScreen() {
           <Text style={[main.cardTitle, { color: colors.foreground }]}>KYC Details</Text>
 
           {KYC_DOCS.map((doc, i) => {
-            const status = doc.key === "personal" ? "completed" : getStatus(doc.key, "not_submitted");
+            const status = doc.key === "personal" ? "completed" : getDocStatus(doc.key);
+            const isPending = doc.key !== "personal" && getDocStatus(doc.key) === "pending";
             return (
               <View key={doc.key}>
                 <TouchableOpacity style={main.docRow} onPress={() => handleDocTap(doc)} activeOpacity={0.7}>
@@ -620,13 +700,7 @@ export default function KYCInfoScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={[main.docLabel, { color: colors.foreground }]}>{doc.label}</Text>
                     <Text style={[main.docSub, { color: colors.mutedForeground }]}>
-                      {doc.key === "identity" && submitted.identity
-                        ? "Document under review"
-                        : doc.key === "address" && submitted.address
-                        ? "Document under review"
-                        : doc.key === "selfie" && submitted.selfie
-                        ? "Selfie under review"
-                        : doc.sub}
+                      {isPending ? (doc.key === "selfie" ? "Selfie under review" : "Document under review") : doc.sub}
                     </Text>
                   </View>
                   <StatusBadge status={status} />
@@ -667,7 +741,7 @@ export default function KYCInfoScreen() {
             <TouchableOpacity
               style={[main.completeNowBtn, { backgroundColor: "#4F46E5" }]}
               onPress={() => {
-                const first = KYC_DOCS.find((d) => d.key !== "personal" && getStatus(d.key, "not_submitted") === "not_submitted");
+                const first = KYC_DOCS.find((d) => d.key !== "personal" && getDocStatus(d.key) === "not_submitted");
                 if (first) setActiveDoc(first);
                 else Alert.alert("All Done!", "All documents have been submitted for review.");
               }}
@@ -708,7 +782,7 @@ export default function KYCInfoScreen() {
       {showPD    && <PersonalDetailsModal onClose={() => setShowPD(false)} />}
       {activeDoc && (
         <DocUploadModal
-          doc={{ ...activeDoc, status: getStatus(activeDoc.key, "not_submitted") }}
+          doc={{ ...activeDoc, status: getDocStatus(activeDoc.key) }}
           onClose={() => setActiveDoc(null)}
           onSubmit={() => handleSubmit(activeDoc.key)}
         />

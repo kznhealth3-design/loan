@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Platform,
@@ -409,10 +410,10 @@ export default function OffersScreen() {
   const [showEligibility, setShowEligibility] = useState(false);
   const [applyOffer, setApplyOffer] = useState<Offer | null>(null);
 
-  const offersQuery = useListLoanOffers();
+  const { data: offersData, isLoading: offersLoading, isError: offersError, refetch: offersRefetch } = useListLoanOffers();
   const allOffers: Offer[] = React.useMemo(
-    () => (offersQuery.data ?? []).map(mapOffer),
-    [offersQuery.data],
+    () => (offersData ?? []).map(mapOffer),
+    [offersData],
   );
   const visibleOffers = showAll ? allOffers : allOffers.slice(0, 3);
 
@@ -481,7 +482,35 @@ export default function OffersScreen() {
         </View>
 
         <View style={{ paddingHorizontal: 16, gap: 12, paddingTop: 8 }}>
-          {visibleOffers.map((offer) => (
+          {offersLoading ? (
+            <View style={{ alignItems: "center", paddingVertical: 40 }}>
+              <ActivityIndicator size="large" color="#4F46E5" />
+              <Text style={{ color: colors.mutedForeground, marginTop: 12, fontSize: 14 }}>Loading offers…</Text>
+            </View>
+          ) : offersError ? (
+            <View style={{ alignItems: "center", paddingVertical: 40, gap: 12 }}>
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: "#FEE2E2", alignItems: "center", justifyContent: "center" }}>
+                <Feather name="alert-circle" size={26} color="#EF4444" />
+              </View>
+              <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 15 }}>Could not load offers</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 13, textAlign: "center" }}>Check your connection and try again.</Text>
+              <TouchableOpacity
+                style={{ marginTop: 4, backgroundColor: "#4F46E5", borderRadius: 8, paddingHorizontal: 20, paddingVertical: 9 }}
+                onPress={() => offersRefetch()}
+              >
+                <Text style={{ color: "#fff", fontWeight: "600", fontSize: 14 }}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : visibleOffers.length === 0 ? (
+            <View style={{ alignItems: "center", paddingVertical: 40, gap: 12 }}>
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
+                <Feather name="tag" size={26} color="#4F46E5" />
+              </View>
+              <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 15 }}>No offers available</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 13, textAlign: "center" }}>Check back soon for exclusive loan offers.</Text>
+            </View>
+          ) : null}
+          {!offersLoading && !offersError && visibleOffers.map((offer) => (
             <View key={offer.id} style={[styles.offerCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.offerTop}>
                 <View style={[styles.offerInitial, { backgroundColor: offer.initialBg }]}>

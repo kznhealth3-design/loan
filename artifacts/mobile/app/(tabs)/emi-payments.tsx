@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Platform,
@@ -14,6 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
+import { useListMyLoans } from "@workspace/api-client-react";
 
 type TabId = "due" | "paid" | "all";
 
@@ -95,7 +97,7 @@ const PAID_EMIS = [
   { id: "p6", loanType: "Personal Loan", loanId: "PL87654321", emiNumber: 12, totalEmis: 20, date: "Mar 10, 2024", amount: 50.0, icon: "user" as const, iconColor: "#10B981", iconBg: "#D1FAE5" },
 ];
 
-type DueEmi = typeof DUE_EMIS[0];
+type DueEmi = Omit<typeof DUE_EMIS[0], "icon"> & { icon: "home" | "user" | "credit-card" | "briefcase" | "book" | "truck" };
 
 function PaymentModal({ emi, onClose, onSuccess }: { emi: DueEmi; onClose: () => void; onSuccess: () => void }) {
   const colors = useColors();
@@ -306,6 +308,60 @@ export default function EmiPaymentsScreen() {
   const isWeb = Platform.OS === "web";
   const topPad = isWeb ? 0 : insets.top;
 
+  const { data: loans, isLoading: loansLoading } = useListMyLoans();
+
+  // Derive EMI data from real loans
+  const realDueEmis: DueEmi[] = (loans ?? [])
+    .filter((l) => l.status === "active" && l.nextDueDate)
+    .map((l, idx) => ({
+      id: l.id,
+      loanType: "Loan",
+      loanId: l.id.slice(0, 12).toUpperCase(),
+      emiNumber: Math.round(l.amountPaid / l.emiAmount) + 1,
+      totalEmis: l.tenureMonths,
+      dueDate: new Date(l.nextDueDate!).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+      amount: l.emiAmount,
+      principal: parseFloat((l.emiAmount * 0.75).toFixed(2)),
+      interest: parseFloat((l.emiAmount * 0.25).toFixed(2)),
+      icon: idx % 2 === 0 ? ("home" as const) : ("user" as const),
+      iconColor: idx % 2 === 0 ? "#4F46E5" : "#10B981",
+      iconBg: idx % 2 === 0 ? "#EEF2FF" : "#D1FAE5",
+      isNext: idx === 0,
+    }));
+
+  const realUpcomingEmis: typeof UPCOMING_EMIS = (loans ?? [])
+    .filter((l) => l.status === "active")
+    .flatMap((l, idx) => {
+      const baseEmi = Math.round(l.amountPaid / l.emiAmount) + 2;
+      return [1, 2].map((offset) => ({
+        id: `${l.id}-${offset}`,
+        loanType: "Loan",
+        loanId: l.id.slice(0, 12).toUpperCase(),
+        emiNumber: baseEmi + offset,
+        totalEmis: l.tenureMonths,
+        dueDate: (() => {
+          const d = l.nextDueDate ? new Date(l.nextDueDate) : new Date();
+          d.setMonth(d.getMonth() + offset);
+          return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+        })(),
+        amount: l.emiAmount,
+        icon: idx % 2 === 0 ? ("home" as const) : ("user" as const),
+        iconColor: idx % 2 === 0 ? "#4F46E5" : "#10B981",
+        iconBg: idx % 2 === 0 ? "#EEF2FF" : "#D1FAE5",
+      }));
+    });
+
+  const hasRealData = (loans?.length ?? 0) > 0;
+  const displayDueEmis  = hasRealData ? realDueEmis  : DUE_EMIS;
+  const displayUpcoming = hasRealData ? realUpcomingEmis : UPCOMING_EMIS;
+  const displayPaid     = PAID_EMIS; // always show static paid history for now
+
+  // Overview stats
+  const totalEmis      = hasRealData ? (loans ?? []).reduce((s, l) => s + l.tenureMonths, 0) : 50;
+  const totalPaidEmis  = hasRealData ? (loans ?? []).reduce((s, l) => s + Math.round(l.amountPaid / (l.emiAmount || 1)), 0) : 20;
+  const totalPending   = hasRealData ? realDueEmis.length : 1;
+  const totalAmtPaid   = hasRealData ? (loans ?? []).reduce((s, l) => s + l.amountPaid, 0) : 7550;
+
   const [activeTab, setActiveTab] = useState<TabId>("due");
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
   const [showAllPaid, setShowAllPaid] = useState(false);
@@ -313,8 +369,8 @@ export default function EmiPaymentsScreen() {
   const [detailEmi, setDetailEmi] = useState<typeof PAID_EMIS[0] | typeof UPCOMING_EMIS[0] | null>(null);
   const [showAutoPay, setShowAutoPay] = useState(false);
 
-  const upcomingVisible = showAllUpcoming ? UPCOMING_EMIS : UPCOMING_EMIS.slice(0, 2);
-  const paidVisible = showAllPaid ? PAID_EMIS : PAID_EMIS.slice(0, 3);
+  const upcomingVisible = showAllUpcoming ? displayUpcoming : displayUpcoming.slice(0, 2);
+  const paidVisible     = showAllPaid     ? displayPaid     : displayPaid.slice(0, 3);
 
   const tabs: { id: TabId; label: string }[] = [
     { id: "due", label: "Due EMIs" },
@@ -326,7 +382,7 @@ export default function EmiPaymentsScreen() {
     <>
       {/* Next EMI Due */}
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Next EMI Due</Text>
-      {DUE_EMIS.map((emi) => (
+      {displayDueEmis.map((emi) => (
         <View key={emi.id} style={[styles.nextEmiCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.nextEmiTop}>
             <View style={[styles.loanIconCircle, { backgroundColor: emi.iconBg }]}>
@@ -452,7 +508,7 @@ export default function EmiPaymentsScreen() {
     <>
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Payment History</Text>
       <View style={[styles.listCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        {PAID_EMIS.map((emi, i) => (
+        {displayPaid.map((emi, i) => (
           <View key={emi.id}>
             <TouchableOpacity style={styles.emiRow} onPress={() => setDetailEmi(emi)} activeOpacity={0.7}>
               <View style={styles.paidCheckCircle}>
@@ -466,7 +522,7 @@ export default function EmiPaymentsScreen() {
               <Text style={[styles.emiRowAmt, { color: "#10B981" }]}>${emi.amount.toFixed(2)}</Text>
               <Feather name="chevron-right" size={15} color={colors.mutedForeground} style={{ marginLeft: 4 }} />
             </TouchableOpacity>
-            {i < PAID_EMIS.length - 1 && <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />}
+            {i < displayPaid.length - 1 && <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />}
           </View>
         ))}
       </View>
@@ -475,9 +531,9 @@ export default function EmiPaymentsScreen() {
 
   const renderAllTab = () => {
     const allEmis = [
-      ...DUE_EMIS.map((e) => ({ ...e, kind: "due" as const, displayDate: e.dueDate })),
-      ...UPCOMING_EMIS.map((e) => ({ ...e, kind: "upcoming" as const, displayDate: e.dueDate })),
-      ...PAID_EMIS.map((e) => ({ ...e, kind: "paid" as const, displayDate: e.date })),
+      ...displayDueEmis.map((e) => ({ ...e, kind: "due" as const, displayDate: e.dueDate })),
+      ...displayUpcoming.map((e) => ({ ...e, kind: "upcoming" as const, displayDate: e.dueDate })),
+      ...displayPaid.map((e) => ({ ...e, kind: "paid" as const, displayDate: e.date })),
     ];
     return (
       <>
@@ -538,10 +594,10 @@ export default function EmiPaymentsScreen() {
             <Text style={[styles.overviewTitle, { color: colors.foreground }]}>Payment Overview</Text>
             <View style={styles.overviewGrid}>
               {[
-                { label: "Total EMIs", value: "50", icon: "calendar", iconColor: "#4F46E5", iconBg: "#EEF2FF", sub: null },
-                { label: "EMIs Paid", value: "20", icon: "check-circle", iconColor: "#10B981", iconBg: "#D1FAE5", sub: null },
-                { label: "EMIs Pending", value: "1", icon: "clock", iconColor: "#F59E0B", iconBg: "#FEF3C7", sub: "Due Soon" },
-                { label: "Total Amount Paid", value: "$7,550.00", icon: "dollar-sign", iconColor: "#3B82F6", iconBg: "#DBEAFE", sub: null },
+                { label: "Total EMIs",        value: String(totalEmis),               icon: "calendar",     iconColor: "#4F46E5", iconBg: "#EEF2FF", sub: null },
+                { label: "EMIs Paid",          value: String(totalPaidEmis),           icon: "check-circle", iconColor: "#10B981", iconBg: "#D1FAE5", sub: null },
+                { label: "EMIs Pending",       value: String(totalPending),            icon: "clock",        iconColor: "#F59E0B", iconBg: "#FEF3C7", sub: "Due Soon" },
+                { label: "Total Amount Paid",  value: `$${totalAmtPaid.toFixed(2)}`,   icon: "dollar-sign",  iconColor: "#3B82F6", iconBg: "#DBEAFE", sub: null },
               ].map((s, i) => (
                 <View key={i} style={styles.overviewItem}>
                   <View style={[styles.ovIconWrap, { backgroundColor: s.iconBg }]}>
