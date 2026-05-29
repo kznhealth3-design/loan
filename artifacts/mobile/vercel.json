@@ -4,13 +4,7 @@
   "installCommand": "",
   "outputDirectory": "dist",
   "framework": null,
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/_expo/static/(.*)", "dest": "/_expo/static/$1" },
-    { "src": "/assets/(.*)", "dest": "/assets/$1" },
-    { "src": "/favicon.ico", "dest": "/favicon.ico" },
-    { "src": "/robots.txt", "dest": "/robots.txt" },
-    { "src": "/sitemap.xml", "dest": "/sitemap.xml" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
