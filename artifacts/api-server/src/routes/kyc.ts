@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db, kycDocumentsTable, userProfilesTable } from "@workspace/db";
 import {
   ListMyKycDocumentsResponse,
@@ -37,7 +37,12 @@ router.post("/kyc/documents", requireAuth, async (req, res): Promise<void> => {
     await db
       .update(kycDocumentsTable)
       .set({ objectKey: parsed.data.objectKey, status: "pending" })
-      .where(eq(kycDocumentsTable.userId, req.user!.id));
+      .where(
+        and(
+          eq(kycDocumentsTable.userId, req.user!.id),
+          eq(kycDocumentsTable.docType, parsed.data.docType),
+        ),
+      );
   } else {
     await db.insert(kycDocumentsTable).values({
       userId: req.user!.id,
@@ -63,7 +68,12 @@ router.post("/kyc/documents", requireAuth, async (req, res): Promise<void> => {
   const [doc] = await db
     .select()
     .from(kycDocumentsTable)
-    .where(eq(kycDocumentsTable.userId, req.user!.id))
+    .where(
+      and(
+        eq(kycDocumentsTable.userId, req.user!.id),
+        eq(kycDocumentsTable.docType, parsed.data.docType),
+      ),
+    )
     .orderBy(desc(kycDocumentsTable.uploadedAt))
     .limit(1);
 
