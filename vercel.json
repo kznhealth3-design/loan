@@ -1,7 +1,7 @@
 {
   "version": 2,
   "name": "loango-frontend",
-  "buildCommand": "cp -r artifacts/mobile/dist dist",
+  "buildCommand": "mkdir -p dist && cp -r artifacts/mobile/dist/. dist/",
   "outputDirectory": "dist",
   "framework": null,
   "installCommand": "echo skip",
