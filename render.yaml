@@ -3,7 +3,7 @@ services:
     name: loango-api
     env: node
     runtime: node
-    buildCommand: "npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/api-server run build"
+    buildCommand: "corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile && pnpm --filter @workspace/api-server run build"
     startCommand: "node --enable-source-maps artifacts/api-server/dist/index.mjs"
     envVars:
       - key: NODE_ENV
@@ -16,12 +16,6 @@ services:
           property: connectionString
       - key: SESSION_SECRET
         generateValue: true
-      - key: ISSUER_URL
-        value: https://replit.com/oidc
-      - key: REPL_ID
-        sync: false
-      - key: REPL_ID
-        value: loango-render
       - key: FRONTEND_URL
         value: https://loango-frontend.vercel.app
     healthCheckPath: /api/healthz
