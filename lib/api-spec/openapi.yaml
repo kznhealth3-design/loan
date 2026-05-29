@@ -54,66 +54,56 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AuthUserEnvelope' }
-  /login:
-    get:
-      tags: [Auth]
-      operationId: beginBrowserLogin
-      summary: Start the browser OIDC login flow
-      parameters:
-        - name: returnTo
-          in: query
-          required: false
-          schema: { type: string }
-      responses:
-        '302': { description: Redirect to OIDC authorization endpoint. }
-  /callback:
-    get:
-      tags: [Auth]
-      operationId: handleBrowserLoginCallback
-      summary: Complete the browser OIDC login flow
-      parameters:
-        - { name: code, in: query, required: false, schema: { type: string } }
-        - { name: state, in: query, required: false, schema: { type: string } }
-        - { name: iss, in: query, required: false, schema: { type: string, format: uri } }
-      responses:
-        '302': { description: Redirect to returnTo path. }
-  /logout:
-    get:
-      tags: [Auth]
-      operationId: logoutBrowserSession
-      summary: Clear the session and begin OIDC logout
-      parameters:
-        - $ref: '#/components/parameters/AuthorizationSessionHeader'
-        - $ref: '#/components/parameters/SessionCookie'
-      responses:
-        '302': { description: Redirect to OIDC provider logout URL. }
-  /mobile-auth/token-exchange:
+
+  /auth/register:
     post:
       tags: [Auth]
-      operationId: exchangeMobileAuthorizationCode
+      operationId: registerUser
+      summary: Create a new user account with email and password
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/MobileTokenExchangeRequest' }
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: Account created and session started.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthUserEnvelope' }
+        '400': { $ref: '#/components/responses/ErrorResponse' }
+        '409': { $ref: '#/components/responses/ErrorResponse' }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: loginUser
+      summary: Authenticate with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
       responses:
         '200':
           description: Session created.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/MobileTokenExchangeSuccess' }
+              schema: { $ref: '#/components/schemas/AuthUserEnvelope' }
         '400': { $ref: '#/components/responses/ErrorResponse' }
         '401': { $ref: '#/components/responses/ErrorResponse' }
-        '500': { $ref: '#/components/responses/ErrorResponse' }
-  /mobile-auth/logout:
+
+  /auth/logout:
     post:
       tags: [Auth]
-      operationId: logoutMobileSession
+      operationId: logoutUser
+      summary: Destroy the current session
       parameters:
         - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
       responses:
         '200':
-          description: Logout processed.
+          description: Logged out.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LogoutSuccess' }
@@ -203,6 +193,7 @@ paths:
               schema: { $ref: '#/components/schemas/LoanApplication' }
         '400': { $ref: '#/components/responses/ErrorResponse' }
         '401': { $ref: '#/components/responses/ErrorResponse' }
+
   /loan-applications/{id}:
     get:
       tags: [Applications]
@@ -215,6 +206,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LoanApplication' }
+        '401': { $ref: '#/components/responses/ErrorResponse' }
         '404': { $ref: '#/components/responses/ErrorResponse' }
 
   /loans:
@@ -230,6 +222,7 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/Loan' }
         '401': { $ref: '#/components/responses/ErrorResponse' }
+
   /loans/{id}:
     get:
       tags: [Loans]
@@ -242,22 +235,31 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LoanDetail' }
+        '401': { $ref: '#/components/responses/ErrorResponse' }
         '404': { $ref: '#/components/responses/ErrorResponse' }
 
-  /emis/{id}/checkout-session:
+  /payments/checkout-session:
     post:
       tags: [Payments]
-      operationId: createEmiCheckoutSession
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
+      operationId: createCheckoutSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [emiPaymentId]
+              properties:
+                emiPaymentId: { type: string, minLength: 1 }
       responses:
         '200':
-          description: OK
+          description: Checkout session URL
           content:
             application/json:
               schema: { $ref: '#/components/schemas/CheckoutSession' }
-        '404': { $ref: '#/components/responses/ErrorResponse' }
+        '400': { $ref: '#/components/responses/ErrorResponse' }
         '401': { $ref: '#/components/responses/ErrorResponse' }
+        '404': { $ref: '#/components/responses/ErrorResponse' }
 
   /notifications:
     get:
@@ -272,6 +274,7 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/Notification' }
         '401': { $ref: '#/components/responses/ErrorResponse' }
+
   /notifications/{id}/read:
     post:
       tags: [Notifications]
@@ -284,12 +287,13 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Notification' }
+        '401': { $ref: '#/components/responses/ErrorResponse' }
         '404': { $ref: '#/components/responses/ErrorResponse' }
 
   /kyc/documents:
     get:
       tags: [KYC]
-      operationId: listMyKycDocuments
+      operationId: listKycDocuments
       responses:
         '200':
           description: OK
@@ -309,12 +313,13 @@ paths:
             schema: { $ref: '#/components/schemas/KycDocumentInput' }
       responses:
         '201':
-          description: Created
+          description: Recorded
           content:
             application/json:
               schema: { $ref: '#/components/schemas/KycDocument' }
         '400': { $ref: '#/components/responses/ErrorResponse' }
         '401': { $ref: '#/components/responses/ErrorResponse' }
+
   /kyc/upload-url:
     post:
       tags: [KYC]
@@ -380,20 +385,21 @@ components:
           oneOf:
             - $ref: '#/components/schemas/AuthUser'
             - type: 'null'
-    MobileTokenExchangeRequest:
+
+    RegisterRequest:
       type: object
-      required: [code, code_verifier, redirect_uri, state]
+      required: [email, password]
       properties:
-        code: { type: string, minLength: 1 }
-        code_verifier: { type: string, minLength: 1 }
-        redirect_uri: { type: string, minLength: 1, format: uri }
-        state: { type: string, minLength: 1 }
-        nonce: { type: string, minLength: 1 }
-    MobileTokenExchangeSuccess:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        firstName: { type: string }
+        lastName: { type: string }
+    LoginRequest:
       type: object
-      required: [token]
+      required: [email, password]
       properties:
-        token: { type: string }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 1 }
     LogoutSuccess:
       type: object
       required: [success]
