@@ -1,11 +1,8 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "artifacts/mobile/dist/index.html",
-      "use": "@vercel/static"
-    }
-  ],
+  "framework": null,
+  "buildCommand": "cp -r artifacts/mobile/dist dist",
+  "outputDirectory": "dist",
   "rewrites": [
     {
       "source": "/api/(.*)",
