@@ -1,8 +1,8 @@
 {
   "version": 2,
   "framework": null,
-  "buildCommand": "cp -r artifacts/mobile/dist dist",
-  "outputDirectory": "dist",
+  "buildCommand": "pnpm install --no-frozen-lockfile && node artifacts/mobile/scripts/build.js",
+  "outputDirectory": "artifacts/mobile/dist",
   "rewrites": [
     {
       "source": "/api/(.*)",
