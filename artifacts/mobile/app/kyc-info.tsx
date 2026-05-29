@@ -159,11 +159,14 @@ function DocUploadModal({
       const { uploadUrl, objectKey } = await createUploadUrl.mutateAsync({
         data: { docType: doc.key, contentType: fileData.type },
       });
-      await fetch(uploadUrl, {
+      const uploadRes = await fetch(uploadUrl, {
         method: "PUT",
         headers: { "Content-Type": fileData.type },
         body: fileData.data,
       });
+      if (!uploadRes.ok) {
+        throw new Error(`Upload failed (${uploadRes.status})`);
+      }
       await recordDoc.mutateAsync({
         data: { docType: doc.key, objectKey },
       });
