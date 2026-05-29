@@ -1,8 +1,8 @@
 {
   "version": 2,
   "name": "loango-frontend",
-  "buildCommand": "npm install -g pnpm@9 && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/mobile run build && cp -r artifacts/mobile/dist dist",
-  "outputDirectory": "dist",
+  "buildCommand": "echo 'pre-built'",
+  "outputDirectory": "artifacts/mobile/dist",
   "framework": null,
   "installCommand": "echo skip",
   "routes": [
