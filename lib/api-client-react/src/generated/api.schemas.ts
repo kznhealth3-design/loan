@@ -198,6 +198,12 @@ export interface LoanDetail {
   emis: EmiPayment[];
 }
 
+export interface PayEmiInput {
+  /** @minLength 1 */
+  loanId: string;
+  emiPaymentId?: string;
+}
+
 export interface CheckoutSessionInput {
   /** @minLength 1 */
   emiPaymentId: string;

@@ -344,6 +344,26 @@ paths:
         '401': { $ref: '#/components/responses/ErrorResponse' }
         '404': { $ref: '#/components/responses/ErrorResponse' }
 
+  /payments/pay-emi:
+    post:
+      tags: [Payments]
+      operationId: payEmi
+      summary: Record an EMI payment (simulated)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PayEmiInput' }
+      responses:
+        '200':
+          description: EMI marked as paid
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmiPayment' }
+        '400': { $ref: '#/components/responses/ErrorResponse' }
+        '401': { $ref: '#/components/responses/ErrorResponse' }
+        '404': { $ref: '#/components/responses/ErrorResponse' }
+
   /payments/checkout-session:
     post:
       tags: [Payments]
@@ -620,6 +640,13 @@ components:
         emis:
           type: array
           items: { $ref: '#/components/schemas/EmiPayment' }
+
+    PayEmiInput:
+      type: object
+      required: [loanId]
+      properties:
+        loanId: { type: string, minLength: 1 }
+        emiPaymentId: { type: string }
 
     CheckoutSessionInput:
       type: object

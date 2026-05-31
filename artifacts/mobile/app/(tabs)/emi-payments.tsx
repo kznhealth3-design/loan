@@ -15,7 +15,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
-import { useListMyLoans } from "@workspace/api-client-react";
+import { useListMyLoans, usePayEmi, getListMyLoansQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 type TabId = "due" | "paid" | "all";
 
@@ -97,16 +98,36 @@ const PAID_EMIS = [
   { id: "p6", loanType: "Personal Loan", loanId: "PL87654321", emiNumber: 12, totalEmis: 20, date: "Mar 10, 2024", amount: 50.0, icon: "user" as const, iconColor: "#10B981", iconBg: "#D1FAE5" },
 ];
 
-type DueEmi = Omit<typeof DUE_EMIS[0], "icon"> & { icon: "home" | "user" | "credit-card" | "briefcase" | "book" | "truck" };
+type DueEmi = Omit<typeof DUE_EMIS[0], "icon"> & { icon: "home" | "user" | "credit-card" | "briefcase" | "book" | "truck"; loanId?: string };
 
 function PaymentModal({ emi, onClose, onSuccess }: { emi: DueEmi; onClose: () => void; onSuccess: () => void }) {
   const colors = useColors();
-  const [step, setStep] = useState<"confirm" | "processing" | "success">("confirm");
+  const queryClient = useQueryClient();
+  const [step, setStep] = useState<"confirm" | "processing" | "success" | "error">("confirm");
   const [method, setMethod] = useState<"upi" | "card" | "netbanking">("upi");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const payEmiMutation = usePayEmi({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListMyLoansQueryKey() });
+        setStep("success");
+      },
+      onError: (err: any) => {
+        setErrorMsg(err?.payload?.error ?? "Payment failed. Please try again.");
+        setStep("error");
+      },
+    },
+  });
 
   const handlePay = () => {
-    setStep("processing");
-    setTimeout(() => setStep("success"), 1800);
+    if (emi.loanId && !emi.loanId.includes("HL") && !emi.loanId.includes("PL")) {
+      setStep("processing");
+      payEmiMutation.mutate({ data: { loanId: emi.loanId } });
+    } else {
+      setStep("processing");
+      setTimeout(() => setStep("success"), 1800);
+    }
   };
 
   if (step === "success") {
@@ -133,6 +154,31 @@ function PaymentModal({ emi, onClose, onSuccess }: { emi: DueEmi; onClose: () =>
                 onPress={() => { onClose(); onSuccess(); }}
               >
                 <Text style={styles.doneBtnText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+    );
+  }
+
+  if (step === "error") {
+    return (
+      <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+        <Pressable style={styles.overlay} onPress={onClose}>
+          <View style={[styles.sheet, { backgroundColor: colors.card }]}>
+            <View style={styles.handle} />
+            <View style={styles.successWrap}>
+              <View style={[styles.successIconWrap, { backgroundColor: "#FEE2E2" }]}>
+                <Feather name="x-circle" size={40} color="#EF4444" />
+              </View>
+              <Text style={[styles.successTitle, { color: colors.foreground }]}>Payment Failed</Text>
+              <Text style={[styles.successSub, { color: colors.mutedForeground }]}>{errorMsg}</Text>
+              <TouchableOpacity
+                style={[styles.doneBtn, { backgroundColor: colors.primary }]}
+                onPress={() => setStep("confirm")}
+              >
+                <Text style={styles.doneBtnText}>Try Again</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -315,8 +361,8 @@ export default function EmiPaymentsScreen() {
     .filter((l) => l.status === "active" && l.nextDueDate)
     .map((l, idx) => ({
       id: l.id,
+      loanId: l.id,
       loanType: "Loan",
-      loanId: l.id.slice(0, 12).toUpperCase(),
       emiNumber: Math.round(l.amountPaid / l.emiAmount) + 1,
       totalEmis: l.tenureMonths,
       dueDate: new Date(l.nextDueDate!).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),

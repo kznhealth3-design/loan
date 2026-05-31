@@ -1,0 +1,1 @@
+- [pnpm version + PORT setup](env-quirks.md) — packageManager must match installed pnpm (10.26.1); workflows need explicit PORT env var

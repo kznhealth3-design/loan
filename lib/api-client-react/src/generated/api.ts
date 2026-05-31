@@ -23,6 +23,7 @@ import type {
   AuthUserEnvelope,
   CheckoutSession,
   CheckoutSessionInput,
+  EmiPayment,
   ErrorResponseResponse,
   HealthStatus,
   KycDocument,
@@ -37,6 +38,7 @@ import type {
   LoginRequest,
   LogoutSuccess,
   Notification,
+  PayEmiInput,
   ProfileUpdate,
   RegisterRequest,
   UserProfile
@@ -1058,6 +1060,53 @@ export function useGetLoanDetail<TData = Awaited<ReturnType<typeof getLoanDetail
 
 
 
+
+export const getPayEmiUrl = () => {
+  return `/api/payments/pay-emi`
+}
+
+export const payEmi = async (payEmiInput: PayEmiInput, options?: RequestInit): Promise<EmiPayment> => {
+  return customFetch<EmiPayment>(getPayEmiUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(payEmiInput)
+  }
+);}
+
+export const getPayEmiMutationOptions = <TError = ErrorType<ErrorResponseResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof payEmi>>, TError,{data: BodyType<PayEmiInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof payEmi>>, TError,{data: BodyType<PayEmiInput>}, TContext> => {
+const mutationKey = ['payEmi'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof payEmi>>, {data: BodyType<PayEmiInput>}> = (props) => {
+          const {data} = props ?? {};
+          return payEmi(data, requestOptions)
+        }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type PayEmiMutationResult = NonNullable<Awaited<ReturnType<typeof payEmi>>>
+export type PayEmiMutationBody = BodyType<PayEmiInput>
+export type PayEmiMutationError = ErrorType<ErrorResponseResponse>
+
+export const usePayEmi = <TError = ErrorType<ErrorResponseResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof payEmi>>, TError,{data: BodyType<PayEmiInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationResult<
+        Awaited<ReturnType<typeof payEmi>>,
+        TError,
+        {data: BodyType<PayEmiInput>},
+        TContext
+      > => {
+      return useMutation(getPayEmiMutationOptions(options));
+    }
 
 export const getCreateCheckoutSessionUrl = () => {
 

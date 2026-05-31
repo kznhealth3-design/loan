@@ -286,6 +286,21 @@ export const GetLoanDetailResponse = zod.object({
 
 
 
+export const PayEmiBody = zod.object({
+  "loanId": zod.string().min(1),
+  "emiPaymentId": zod.string().optional()
+})
+
+export const PayEmiResponse = zod.object({
+  "id": zod.string(),
+  "loanId": zod.string(),
+  "installmentNumber": zod.number(),
+  "dueDate": zod.coerce.date(),
+  "amount": zod.number(),
+  "status": zod.enum(["pending", "paid", "overdue"]),
+  "paidAt": zod.coerce.date().nullable().optional()
+})
+
 export const CreateCheckoutSessionBody = zod.object({
   "emiPaymentId": zod.string().min(1)
 })

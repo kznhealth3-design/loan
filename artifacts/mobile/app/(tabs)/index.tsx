@@ -23,6 +23,7 @@ import {
 } from "@workspace/api-client-react";
 import { mapLoan } from "@/lib/loanAdapter";
 import type { DisplayLoan } from "@/lib/loanAdapter";
+import { useAuth } from "@/lib/auth";
 
 // ─── Static fallback data ─────────────────────────────────────────────────────
 const PAYMENTS = [
@@ -465,6 +466,9 @@ export default function DashboardScreen() {
   const isWeb = Platform.OS === "web";
   const topPad = isWeb ? 67 : insets.top;
 
+  const { user } = useAuth();
+  const firstName = user?.firstName ?? user?.email?.split("@")[0] ?? "there";
+
   const { data: notifs } = useListMyNotifications();
   const unreadCount = notifs?.filter((n) => !n.read).length ?? 0;
 
@@ -531,7 +535,7 @@ export default function DashboardScreen() {
 
       {/* ── Welcome ───────────────────────────────────────────────────── */}
       <View style={s.welcomeWrap}>
-        <Text style={[s.welcomeTitle, { color: colors.foreground }]}>Welcome back, Rahul! 👋</Text>
+        <Text style={[s.welcomeTitle, { color: colors.foreground }]}>Welcome back, {firstName}! 👋</Text>
         <Text style={[s.welcomeSub, { color: colors.mutedForeground }]}>Here's what's happening with your loans</Text>
       </View>
 

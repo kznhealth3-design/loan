@@ -17,7 +17,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
-import { useListMyLoans } from "@workspace/api-client-react";
+import { useListMyLoans, usePayEmi, getListMyLoansQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { mapLoan, type DisplayLoan } from "@/lib/loanAdapter";
 
 const _LEGACY_ACTIVE_LOANS_REMOVED = [
@@ -102,13 +103,18 @@ type Loan = DisplayLoan;
 void _LEGACY_ACTIVE_LOANS_REMOVED;
 void _LEGACY_CLOSED_LOANS_REMOVED;
 
-function OverviewCard() {
+function OverviewCard({ loans }: { loans: DisplayLoan[] }) {
   const colors = useColors();
+  const totalOutstanding = loans.reduce((s, l) => s + l.outstanding, 0);
+  const totalLoans = loans.filter((l) => l.status !== "Closed").length;
+  const totalEmisPending = loans.filter((l) => l.status === "Active").length;
+  const totalAmountPaid = loans.reduce((s, l) => s + l.amountPaid, 0);
+  const fmt = (n: number) => `$ ${n.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
   const stats = [
-    { label: "Total Outstanding", value: "$ 12,450.00", icon: "file-text", iconColor: "#4F46E5", iconBg: "#EEF2FF" },
-    { label: "Total Loans", value: "2", icon: "credit-card", iconColor: "#10B981", iconBg: "#D1FAE5" },
-    { label: "Total EMIs Pending", value: "1", icon: "calendar", iconColor: "#F59E0B", iconBg: "#FEF3C7" },
-    { label: "Total Amount Paid", value: "$ 7,550.00", icon: "package", iconColor: "#3B82F6", iconBg: "#DBEAFE" },
+    { label: "Total Outstanding", value: fmt(totalOutstanding), icon: "file-text", iconColor: "#4F46E5", iconBg: "#EEF2FF" },
+    { label: "Active Loans", value: String(totalLoans), icon: "credit-card", iconColor: "#10B981", iconBg: "#D1FAE5" },
+    { label: "EMIs Pending", value: String(totalEmisPending), icon: "calendar", iconColor: "#F59E0B", iconBg: "#FEF3C7" },
+    { label: "Total Amount Paid", value: fmt(totalAmountPaid), icon: "package", iconColor: "#3B82F6", iconBg: "#DBEAFE" },
   ];
   return (
     <View style={[styles.overviewCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -175,12 +181,27 @@ function LoanDetailsModal({ loan, onClose }: { loan: Loan; onClose: () => void }
 
 function MakePaymentModal({ loan, onClose, onSuccess }: { loan: Loan; onClose: () => void; onSuccess: () => void }) {
   const colors = useColors();
-  const [step, setStep] = useState<"confirm" | "processing" | "success">("confirm");
+  const queryClient = useQueryClient();
+  const [step, setStep] = useState<"confirm" | "processing" | "success" | "error">("confirm");
   const [method, setMethod] = useState<"upi" | "card" | "netbanking">("upi");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const payEmiMutation = usePayEmi({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListMyLoansQueryKey() });
+        setStep("success");
+      },
+      onError: (err: any) => {
+        setErrorMsg(err?.payload?.error ?? "Payment failed. Please try again.");
+        setStep("error");
+      },
+    },
+  });
 
   const handlePay = () => {
     setStep("processing");
-    setTimeout(() => setStep("success"), 1800);
+    payEmiMutation.mutate({ data: { loanId: loan.id } });
   };
 
   if (step === "success") {
@@ -210,6 +231,31 @@ function MakePaymentModal({ loan, onClose, onSuccess }: { loan: Loan; onClose: (
                 onPress={() => { onClose(); onSuccess(); }}
               >
                 <Text style={styles.successBtnText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+    );
+  }
+
+  if (step === "error") {
+    return (
+      <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+        <Pressable style={styles.modalOverlay} onPress={onClose}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHandle} />
+            <View style={styles.successContainer}>
+              <View style={[styles.successIcon, { backgroundColor: "#FEE2E2", borderRadius: 40, width: 80, height: 80, alignItems: "center", justifyContent: "center" }]}>
+                <Feather name="x-circle" size={40} color="#EF4444" />
+              </View>
+              <Text style={[styles.successTitle, { color: colors.foreground }]}>Payment Failed</Text>
+              <Text style={[styles.successSub, { color: colors.mutedForeground }]}>{errorMsg}</Text>
+              <TouchableOpacity
+                style={[styles.successBtn, { backgroundColor: colors.primary }]}
+                onPress={() => setStep("confirm")}
+              >
+                <Text style={styles.successBtnText}>Try Again</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -394,7 +440,7 @@ export default function MyLoansScreen() {
       >
         <View style={{ padding: 16, gap: 0 }}>
           <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 10 }]}>Overview</Text>
-          <OverviewCard />
+          <OverviewCard loans={all} />
         </View>
 
         <View style={[styles.tabRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
