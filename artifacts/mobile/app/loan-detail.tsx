@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
+import { useListMyLoans } from "@workspace/api-client-react";
 
 // ─── Help Modal ───────────────────────────────────────────────────────────────
 function HelpModal({ onClose }: { onClose: () => void }) {
@@ -277,6 +278,10 @@ export default function LoanDetailScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const topPad = isWeb ? 67 : insets.top;
+  const { loanId } = useLocalSearchParams<{ loanId?: string }>();
+
+  const { data: loans } = useListMyLoans();
+  const loan = loans?.find((l) => l.id === loanId);
 
   const [showHelp,    setShowHelp]    = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -324,13 +329,20 @@ export default function LoanDetailScreen() {
     { label: "Disbursal\nPending",     date: "",             done: false, number: 4 },
   ];
 
-  const approvedAmount = 1000000;
-  const processingFee  = 5000;
-  const otherCharges   = 2000;
+  const approvedAmount = loan?.principal ?? 100000;
+  const processingFee  = Math.round(approvedAmount * 0.01);
+  const otherCharges   = Math.round(approvedAmount * 0.005);
   const disbursalAmt   = approvedAmount - processingFee - otherCharges;
+  const emiAmount      = loan?.emiAmount ?? 0;
+  const tenureMonths   = loan?.tenureMonths ?? 12;
+  const interestRate   = loan?.interestRate ?? 8.5;
+  const status         = loan?.status ?? "active";
+  const disbursedAt    = loan?.disbursedAt ?? new Date().toISOString();
 
   const fmt = (n: number) =>
     "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2 });
+
+  const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
   return (
     <View style={[sc.container, { backgroundColor: colors.background }]}>
@@ -359,17 +371,17 @@ export default function LoanDetailScreen() {
                 <Feather name="home" size={24} color="#4F46E5" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[sc.loanType, { color: colors.foreground }]}>Home Loan</Text>
-                <Text style={[sc.loanId, { color: colors.mutedForeground }]}>Loan ID: HL12345678</Text>
-                <View style={[sc.approvedBadge, { backgroundColor: "#D1FAE5" }]}>
-                  <Feather name="check-circle" size={11} color="#10B981" />
-                  <Text style={sc.approvedBadgeText}>Approved</Text>
+                <Text style={[sc.loanType, { color: colors.foreground }]}>Active Loan</Text>
+                <Text style={[sc.loanId, { color: colors.mutedForeground }]}>Loan ID: {loanId?.slice(0, 12).toUpperCase() ?? "N/A"}</Text>
+                <View style={[sc.approvedBadge, { backgroundColor: status === "active" ? "#D1FAE5" : "#F3F4F6" }]}>
+                  <Feather name="check-circle" size={11} color={status === "active" ? "#10B981" : "#6B7280"} />
+                  <Text style={[sc.approvedBadgeText, { color: status === "active" ? "#10B981" : "#6B7280" }]}>{status === "active" ? "Active" : "Closed"}</Text>
                 </View>
               </View>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={[sc.approvedOnLabel, { color: colors.mutedForeground }]}>Approved on</Text>
-              <Text style={[sc.approvedOnDate, { color: colors.foreground }]}>May 20, 2024</Text>
+              <Text style={[sc.approvedOnLabel, { color: colors.mutedForeground }]}>Disbursed on</Text>
+              <Text style={[sc.approvedOnDate, { color: colors.foreground }]}>{fmtDate(disbursedAt)}</Text>
             </View>
           </View>
 
@@ -377,9 +389,9 @@ export default function LoanDetailScreen() {
           <View style={[sc.metricsDivider, { backgroundColor: colors.border }]} />
           <View style={sc.metricsRow}>
             {[
-              { label: "Approved Amount", value: fmt(approvedAmount) },
-              { label: "Interest Rate",   value: "8.50% p.a." },
-              { label: "Tenure",          value: "20 Years" },
+              { label: "Principal", value: fmt(approvedAmount) },
+              { label: "Interest Rate",   value: `${interestRate}% p.a.` },
+              { label: "Tenure",          value: `${tenureMonths} Months` },
             ].map((m, i) => (
               <View key={i} style={[sc.metric, i > 0 && { borderLeftWidth: 1, borderLeftColor: colors.border, paddingLeft: 12 }]}>
                 <Text style={[sc.metricLabel, { color: colors.mutedForeground }]}>{m.label}</Text>
@@ -388,6 +400,25 @@ export default function LoanDetailScreen() {
             ))}
           </View>
         </View>
+
+        {/* ── EMI Card ──────────────────────────────────────────────── */}
+        {emiAmount > 0 && (
+          <View style={[sc.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[sc.cardTitle, { color: colors.foreground }]}>EMI Schedule</Text>
+            <View style={{ flexDirection: "row", gap: 0, marginTop: 8 }}>
+              {[
+                { label: "Monthly EMI", value: fmt(emiAmount) },
+                { label: "Total Payable", value: fmt(loan?.totalPayable ?? 0) },
+                { label: "Amount Paid", value: fmt(loan?.amountPaid ?? 0) },
+              ].map((m, i) => (
+                <View key={i} style={[sc.metric, i > 0 && { borderLeftWidth: 1, borderLeftColor: colors.border, paddingLeft: 12 }]}>
+                  <Text style={[sc.metricLabel, { color: colors.mutedForeground }]}>{m.label}</Text>
+                  <Text style={[sc.metricValue, { color: i === 2 ? "#10B981" : colors.foreground }]}>{m.value}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* ── Congratulations Banner ────────────────────────────────── */}
         <View style={[sc.congrCard, { backgroundColor: "#F0FDF4", borderColor: "#BBF7D0" }]}>

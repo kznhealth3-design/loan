@@ -351,10 +351,38 @@ export default function EmiPaymentsScreen() {
       }));
     });
 
+  // Build paid EMIs from real loan data
+  const realPaidEmis: typeof PAID_EMIS = (loans ?? [])
+    .filter((l) => l.status === "active" || l.status === "closed")
+    .flatMap((l, idx) => {
+      const paidEmis = Math.round(l.amountPaid / (l.emiAmount || 1));
+      if (paidEmis <= 0) return [];
+      const disbursed = new Date(l.disbursedAt);
+      const icon = idx % 2 === 0 ? ("home" as const) : ("user" as const);
+      const iconColor = idx % 2 === 0 ? "#4F46E5" : "#10B981";
+      const iconBg = idx % 2 === 0 ? "#EEF2FF" : "#D1FAE5";
+      return Array.from({ length: paidEmis }, (_, i) => {
+        const d = new Date(disbursed);
+        d.setMonth(d.getMonth() + i + 1);
+        return {
+          id: `${l.id}-paid-${i}`,
+          loanType: "Loan",
+          loanId: l.id.slice(0, 12).toUpperCase(),
+          emiNumber: i + 1,
+          totalEmis: l.tenureMonths,
+          date: d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+          amount: l.emiAmount,
+          icon,
+          iconColor,
+          iconBg,
+        };
+      });
+    });
+
   const hasRealData = (loans?.length ?? 0) > 0;
   const displayDueEmis  = hasRealData ? realDueEmis  : DUE_EMIS;
   const displayUpcoming = hasRealData ? realUpcomingEmis : UPCOMING_EMIS;
-  const displayPaid     = PAID_EMIS; // always show static paid history for now
+  const displayPaid     = hasRealData ? realPaidEmis : PAID_EMIS;
 
   // Overview stats
   const totalEmis      = hasRealData ? (loans ?? []).reduce((s, l) => s + l.tenureMonths, 0) : 50;

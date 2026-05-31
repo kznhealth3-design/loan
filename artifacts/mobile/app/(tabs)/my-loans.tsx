@@ -373,7 +373,7 @@ export default function MyLoansScreen() {
   const [detailsLoan, setDetailsLoan] = useState<Loan | null>(null);
   const [payLoan, setPayLoan] = useState<Loan | null>(null);
 
-  const { data: loansData, isLoading: loansLoading, isError: loansError, refetch: loansRefetch } = useListMyLoans();
+  const { data: loansData, isLoading: loansLoading, isError: loansIsError, error: loansError, refetch: loansRefetch } = useListMyLoans();
   const all = React.useMemo(
     () => (loansData ?? []).map(mapLoan),
     [loansData],
@@ -422,18 +422,26 @@ export default function MyLoansScreen() {
               <ActivityIndicator size="large" color={colors.primary} />
               <Text style={{ color: colors.mutedForeground, marginTop: 12, fontSize: 14 }}>Loading your loans…</Text>
             </View>
-          ) : loansError ? (
+          ) : loansIsError ? (
             <View style={{ alignItems: "center", paddingVertical: 40, gap: 12 }}>
               <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: "#FEE2E2", alignItems: "center", justifyContent: "center" }}>
                 <Feather name="alert-circle" size={26} color="#EF4444" />
               </View>
-              <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 15 }}>Could not load loans</Text>
-              <Text style={{ color: colors.mutedForeground, fontSize: 13, textAlign: "center" }}>Check your connection and try again.</Text>
+              <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 15 }}>
+                {(loansError as any)?.status === 401 ? "Please log in" : "Could not load loans"}
+              </Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 13, textAlign: "center" }}>
+                {(loansError as any)?.status === 401
+                  ? "Sign in to view your loans and applications."
+                  : "Check your connection and try again."}
+              </Text>
               <TouchableOpacity
                 style={{ marginTop: 4, backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 20, paddingVertical: 9 }}
                 onPress={() => loansRefetch()}
               >
-                <Text style={{ color: "#fff", fontWeight: "600", fontSize: 14 }}>Retry</Text>
+                <Text style={{ color: "#fff", fontWeight: "600", fontSize: 14 }}>
+                  {(loansError as any)?.status === 401 ? "Log in" : "Retry"}
+                </Text>
               </TouchableOpacity>
             </View>
           ) : loans.length === 0 ? (

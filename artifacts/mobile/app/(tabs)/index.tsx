@@ -16,47 +16,53 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
-import { useListMyNotifications } from "@workspace/api-client-react";
+import {
+  useListMyNotifications,
+  useListMyLoans,
+  useListMyLoanApplications,
+} from "@workspace/api-client-react";
+import { mapLoan } from "@/lib/loanAdapter";
+import type { DisplayLoan } from "@/lib/loanAdapter";
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
-const ACTIVE_LOANS = [
-  {
-    id: "1", type: "Home Loan",     loanId: "HL12345678",
-    outstanding: 10250.0, nextEmi: 200.0, dueDate: "May 25, 2024",
-    progress: 0.6, paidEmis: 20, totalEmis: 30,
-    icon: "home" as const, iconColor: "#4F46E5", iconBg: "#EEF2FF",
-  },
-  {
-    id: "2", type: "Personal Loan", loanId: "PL87654321",
-    outstanding: 2200.0, nextEmi: 50.0, dueDate: "Jun 10, 2024",
-    progress: 0.8, paidEmis: 16, totalEmis: 20,
-    icon: "credit-card" as const, iconColor: "#10B981", iconBg: "#D1FAE5",
-  },
-];
-
-const PENDING_LOANS = [
-  {
-    id: "p1", type: "Car Loan", loanId: "CL20240501",
-    appliedAmount: 35000, appliedOn: "May 01, 2024",
-    bank: "AutoFin Bank", status: "Under Review",
-    icon: "truck" as const, iconColor: "#F59E0B", iconBg: "#FEF3C7",
-  },
-];
-
-const APPROVED_LOANS = [
-  {
-    id: "a1", type: "Home Loan", loanId: "HL12345678",
-    approvedAmount: 10000000, approvedOn: "May 20, 2024",
-    bank: "HomeFirst Bank", disbursalStatus: "Ready to Disburse",
-    icon: "home" as const, iconColor: "#4F46E5", iconBg: "#D1FAE5",
-  },
-];
-
+// ─── Static fallback data ─────────────────────────────────────────────────────
 const PAYMENTS = [
   { id: "1", title: "EMI Payment",   subtitle: "Home Loan •••• 5678",    amount: -200.0,  date: "Apr 25, 2024", type: "emi" },
   { id: "2", title: "EMI Payment",   subtitle: "Personal Loan •••• 4321", amount: -50.0,   date: "Apr 10, 2024", type: "emi" },
   { id: "3", title: "Loan Disbursed",subtitle: "Personal Loan •••• 4321", amount: 2200.0,  date: "Apr 01, 2024", type: "disbursed" },
 ];
+
+function buildPaymentsFromLoans(loans: any[] | undefined): typeof PAYMENTS {
+  if (!loans || loans.length === 0) return PAYMENTS;
+  const payments: typeof PAYMENTS = [];
+  loans.forEach((loan, idx) => {
+    const typeLabel = idx % 2 === 0 ? "Home Loan" : "Personal Loan";
+    const loanIdShort = loan.id.slice(0, 8).toUpperCase();
+    // Disbursement (positive)
+    payments.push({
+      id: `${loan.id}-disb`,
+      title: "Loan Disbursed",
+      subtitle: `${typeLabel} •••• ${loanIdShort}`,
+      amount: loan.principal,
+      date: new Date(loan.disbursedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+      type: "disbursed" as const,
+    });
+    // EMIs paid (negative)
+    const paidEmis = Math.round(loan.amountPaid / (loan.emiAmount || 1));
+    for (let i = 0; i < paidEmis; i++) {
+      const d = new Date(loan.disbursedAt);
+      d.setMonth(d.getMonth() + i + 1);
+      payments.push({
+        id: `${loan.id}-emi-${i}`,
+        title: "EMI Payment",
+        subtitle: `${typeLabel} •••• ${loanIdShort}`,
+        amount: -(loan.emiAmount || 0),
+        date: d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+        type: "emi" as const,
+      });
+    }
+  });
+  return payments.slice(0, 5); // show top 5
+}
 
 type LoanTab = "active" | "pending" | "approved" | "closed";
 
@@ -403,7 +409,7 @@ const ec = StyleSheet.create({
 });
 
 // ─── Loan Detail Modal ────────────────────────────────────────────────────────
-function LoanDetailModal({ loan, onClose }: { loan: typeof APPROVED_LOANS[0]; onClose: () => void }) {
+function LoanDetailModal({ loan, onClose }: { loan: DisplayLoan; onClose: () => void }) {
   const colors = useColors();
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
@@ -426,14 +432,16 @@ function LoanDetailModal({ loan, onClose }: { loan: typeof APPROVED_LOANS[0]; on
           {[
             { label: "Loan Type",        value: loan.type },
             { label: "Loan ID",          value: loan.loanId },
-            { label: "Lender",           value: loan.bank },
-            { label: "Approved Amount",  value: `$${loan.approvedAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
-            { label: "Approved On",      value: loan.approvedOn },
-            { label: "Disbursal Status", value: loan.disbursalStatus },
+            { label: "Principal",        value: `$${loan.disbursed.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
+            { label: "Interest Rate",    value: loan.interestRate },
+            { label: "Tenure",           value: loan.tenure },
+            { label: "Outstanding",      value: `$${loan.outstanding.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
+            { label: "Amount Paid",      value: `$${loan.amountPaid.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
+            { label: "Status",           value: loan.status },
           ].map((r, i) => (
             <View key={i} style={[pdm.row, { borderBottomColor: colors.border }]}>
               <Text style={[pdm.label, { color: colors.mutedForeground }]}>{r.label}</Text>
-              <Text style={[pdm.value, { color: r.label === "Disbursal Status" ? "#10B981" : colors.foreground }]}>{r.value}</Text>
+              <Text style={[pdm.value, { color: r.label === "Status" ? (loan.status === "Active" ? "#10B981" : "#6B7280") : colors.foreground }]}>{r.value}</Text>
             </View>
           ))}
           <View style={{ height: 20 }} />
@@ -460,27 +468,35 @@ export default function DashboardScreen() {
   const { data: notifs } = useListMyNotifications();
   const unreadCount = notifs?.filter((n) => !n.read).length ?? 0;
 
+  const { data: loansData } = useListMyLoans();
+  const { data: appsData } = useListMyLoanApplications();
+
   const [loanTab,       setLoanTab]       = useState<LoanTab>("active");
   const [showNotif,     setShowNotif]     = useState(false);
   const [showWithdraw,  setShowWithdraw]  = useState(false);
   const [showStatement, setShowStatement] = useState(false);
   const [showCalc,      setShowCalc]      = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<typeof PAYMENTS[0] | null>(null);
-  const [selectedLoan,    setSelectedLoan]    = useState<typeof APPROVED_LOANS[0] | null>(null);
+  const [selectedLoan,    setSelectedLoan]    = useState<DisplayLoan | null>(null);
+
+  const activeLoans = React.useMemo(() => (loansData ?? []).map(mapLoan).filter((l) => l.status === "Active"), [loansData]);
+  const closedLoans = React.useMemo(() => (loansData ?? []).map(mapLoan).filter((l) => l.status === "Closed"), [loansData]);
+  const pendingApps = React.useMemo(() => (appsData ?? []).filter((a) => a.status === "submitted" || a.status === "under_review"), [appsData]);
+  const approvedApps = React.useMemo(() => (appsData ?? []).filter((a) => a.status === "approved"), [appsData]);
 
   const LOAN_TABS: { key: LoanTab; label: string; count: number }[] = [
-    { key: "active",   label: "Active Loans",  count: 2 },
-    { key: "pending",  label: "Pending",        count: 1 },
-    { key: "approved", label: "Approved",       count: 1 },
-    { key: "closed",   label: "Closed",         count: 0 },
+    { key: "active",   label: "Active Loans",  count: activeLoans.length },
+    { key: "pending",  label: "Pending",        count: pendingApps.length },
+    { key: "approved", label: "Approved",       count: approvedApps.length },
+    { key: "closed",   label: "Closed",         count: closedLoans.length },
   ];
 
-  const totalOutstanding = ACTIVE_LOANS.reduce((s, l) => s + l.outstanding, 0);
-  const totalNextEmi = ACTIVE_LOANS.reduce((s, l) => s + l.nextEmi, 0);
-  const nextEmiLoan = ACTIVE_LOANS.reduce((earliest, l) => {
+  const totalOutstanding = activeLoans.reduce((s, l) => s + l.outstanding, 0);
+  const totalNextEmi = activeLoans.reduce((s, l) => s + l.nextEmi, 0);
+  const nextEmiLoan = activeLoans.length > 0 ? activeLoans.reduce((earliest, l) => {
     const d1 = new Date(earliest.dueDate); const d2 = new Date(l.dueDate);
     return d2 < d1 ? l : earliest;
-  }, ACTIVE_LOANS[0]);
+  }, activeLoans[0]) : null;
 
   return (
     <ScrollView
@@ -528,7 +544,7 @@ export default function DashboardScreen() {
               <Feather name="info" size={12} color="rgba(255,255,255,0.65)" />
             </View>
             <Text style={s.sumAmt}>$ {totalOutstanding.toLocaleString("en-US", { minimumFractionDigits: 2 })}</Text>
-            <Text style={s.sumSub}>Across {ACTIVE_LOANS.length} active loans</Text>
+            <Text style={s.sumSub}>Across {activeLoans.length} active loans</Text>
             <TouchableOpacity style={s.sumBtnFilled} onPress={() => router.push("/(tabs)/emi-payments")}>
               <Text style={s.sumBtnFilledText}>Make a Payment</Text>
               <Feather name="chevron-right" size={14} color="#4F46E5" />
@@ -542,7 +558,7 @@ export default function DashboardScreen() {
             <Text style={s.sumAmt}>$ {totalNextEmi.toFixed(2)}</Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 12 }}>
               <Feather name="calendar" size={11} color="rgba(255,255,255,0.65)" />
-              <Text style={s.sumSub}>Due on {nextEmiLoan.dueDate}</Text>
+              <Text style={s.sumSub}>Due on {nextEmiLoan?.dueDate ?? "No EMIs due"}</Text>
             </View>
             <TouchableOpacity style={s.sumBtnOutline} onPress={() => router.push("/(tabs)/my-loans")}>
               <Text style={s.sumBtnOutlineText}>View My Loans</Text>
@@ -596,7 +612,13 @@ export default function DashboardScreen() {
         {/* Active Tab */}
         {loanTab === "active" && (
           <View style={{ marginTop: 12, gap: 10 }}>
-            {ACTIVE_LOANS.map((loan) => (
+            {activeLoans.length === 0 ? (
+              <View style={[s.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Feather name="inbox" size={40} color={colors.mutedForeground} style={{ marginBottom: 12 }} />
+                <Text style={[s.emptyTitle, { color: colors.foreground }]}>No Active Loans</Text>
+                <Text style={[s.emptySub, { color: colors.mutedForeground }]}>Apply for a loan to get started.</Text>
+              </View>
+            ) : activeLoans.map((loan) => (
               <TouchableOpacity key={loan.id} style={[s.loanCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                 onPress={() => router.push("/(tabs)/my-loans")} activeOpacity={0.8}>
                 <View style={s.loanCardTop}>
@@ -635,29 +657,34 @@ export default function DashboardScreen() {
         {/* Pending Tab */}
         {loanTab === "pending" && (
           <View style={{ marginTop: 12 }}>
-            {PENDING_LOANS.map((loan) => (
-              <View key={loan.id} style={[s.loanCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            {pendingApps.length === 0 ? (
+              <View style={[s.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Feather name="inbox" size={40} color={colors.mutedForeground} style={{ marginBottom: 12 }} />
+                <Text style={[s.emptyTitle, { color: colors.foreground }]}>No Pending Applications</Text>
+                <Text style={[s.emptySub, { color: colors.mutedForeground }]}>Your submitted applications will appear here.</Text>
+              </View>
+            ) : pendingApps.map((app) => (
+              <View key={app.id} style={[s.loanCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={s.loanCardTop}>
-                  <View style={[s.loanIcon, { backgroundColor: loan.iconBg }]}>
-                    <Feather name={loan.icon} size={20} color={loan.iconColor} />
+                  <View style={[s.loanIcon, { backgroundColor: "#FEF3C7" }]}>
+                    <Feather name="truck" size={20} color="#F59E0B" />
                   </View>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <Text style={[s.loanType, { color: colors.foreground }]}>{loan.type}</Text>
+                      <Text style={[s.loanType, { color: colors.foreground }]}>Application</Text>
                       <View style={[s.badge, { backgroundColor: "#FEF3C7" }]}>
                         <Text style={[s.badgeText, { color: "#D97706" }]}>Pending</Text>
                       </View>
                     </View>
-                    <Text style={[s.loanId, { color: colors.mutedForeground }]}>Loan ID: {loan.loanId}</Text>
-                    <Text style={[s.loanId, { color: colors.mutedForeground }]}>Applied on {loan.appliedOn}</Text>
+                    <Text style={[s.loanId, { color: colors.mutedForeground }]}>ID: {app.id.slice(0, 8)}</Text>
+                    <Text style={[s.loanId, { color: colors.mutedForeground }]}>Applied on {new Date(app.createdAt).toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" })}</Text>
                   </View>
                   <View style={{ alignItems: "flex-end" }}>
                     <Text style={[s.loanMeta, { color: colors.mutedForeground }]}>Applied Amount</Text>
-                    <Text style={[s.loanVal, { color: colors.foreground }]}>${loan.appliedAmount.toLocaleString()}</Text>
+                    <Text style={[s.loanVal, { color: colors.foreground }]}>${app.amount.toLocaleString()}</Text>
                     <Text style={[s.loanMeta, { color: colors.mutedForeground, marginTop: 4 }]}>Status</Text>
-                    <Text style={[s.loanVal, { color: "#D97706", fontSize: 11 }]}>{loan.status}</Text>
+                    <Text style={[s.loanVal, { color: "#D97706", fontSize: 11 }]}>{app.status}</Text>
                   </View>
-                  <Feather name="chevron-right" size={16} color={colors.mutedForeground} style={{ alignSelf: "center", marginLeft: 4 }} />
                 </View>
                 <View style={[s.pendingInfo, { backgroundColor: "#FEF3C7", borderColor: "#FDE68A" }]}>
                   <Feather name="clock" size={13} color="#D97706" />
@@ -671,28 +698,34 @@ export default function DashboardScreen() {
         {/* Approved Tab */}
         {loanTab === "approved" && (
           <View style={{ marginTop: 12 }}>
-            {APPROVED_LOANS.map((loan) => (
-              <View key={loan.id} style={[s.loanCard, { backgroundColor: colors.card, borderColor: "#86EFAC", borderLeftWidth: 4, borderLeftColor: "#10B981" }]}>
+            {approvedApps.length === 0 ? (
+              <View style={[s.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Feather name="inbox" size={40} color={colors.mutedForeground} style={{ marginBottom: 12 }} />
+                <Text style={[s.emptyTitle, { color: colors.foreground }]}>No Approved Loans</Text>
+                <Text style={[s.emptySub, { color: colors.mutedForeground }]}>Approved applications will appear here.</Text>
+              </View>
+            ) : approvedApps.map((app) => (
+              <View key={app.id} style={[s.loanCard, { backgroundColor: colors.card, borderColor: "#86EFAC", borderLeftWidth: 4, borderLeftColor: "#10B981" }]}>
                 <View style={s.loanCardTop}>
                   <View style={[s.loanIcon, { backgroundColor: "#D1FAE5" }]}>
                     <Feather name="check-circle" size={20} color="#10B981" />
                   </View>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <Text style={[s.loanType, { color: colors.foreground }]}>{loan.type}</Text>
+                      <Text style={[s.loanType, { color: colors.foreground }]}>Application</Text>
                       <View style={[s.badge, { backgroundColor: "#DBEAFE" }]}>
                         <Text style={[s.badgeText, { color: "#2563EB" }]}>Approved</Text>
                       </View>
                     </View>
-                    <Text style={[s.loanId, { color: colors.mutedForeground }]}>Loan ID: {loan.loanId}</Text>
-                    <Text style={[s.loanId, { color: colors.mutedForeground }]}>Approved on {loan.approvedOn}</Text>
+                    <Text style={[s.loanId, { color: colors.mutedForeground }]}>ID: {app.id.slice(0, 8)}</Text>
+                    <Text style={[s.loanId, { color: colors.mutedForeground }]}>Approved on {new Date(app.createdAt).toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" })}</Text>
                   </View>
                   <View style={{ alignItems: "flex-end" }}>
                     <Text style={[s.loanMeta, { color: colors.mutedForeground }]}>Approved Amount</Text>
-                    <Text style={[s.loanVal, { color: colors.foreground }]}>$ {loan.approvedAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</Text>
-                    <Text style={[s.loanMeta, { color: colors.mutedForeground, marginTop: 4 }]}>Disbursal Status</Text>
+                    <Text style={[s.loanVal, { color: colors.foreground }]}>$ {app.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</Text>
+                    <Text style={[s.loanMeta, { color: colors.mutedForeground, marginTop: 4 }]}>Status</Text>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-                      <Text style={[s.loanVal, { color: "#10B981", fontSize: 11 }]}>{loan.disbursalStatus}</Text>
+                      <Text style={[s.loanVal, { color: "#10B981", fontSize: 11 }]}>Ready to Disburse</Text>
                       <Feather name="info" size={11} color="#10B981" />
                     </View>
                   </View>
@@ -707,7 +740,7 @@ export default function DashboardScreen() {
                     <Text style={s.congrSub}>The approved amount will be disbursed to your bank account.</Text>
                   </View>
                   <TouchableOpacity style={[s.viewDetailsBtn, { backgroundColor: "#4F46E5" }]}
-                    onPress={() => router.push("/loan-detail")}>
+                    onPress={() => router.push(`/loan-detail?loanId=${app.id}`)}>
                     <Text style={s.viewDetailsBtnText}>View Details</Text>
                   </TouchableOpacity>
                 </View>
@@ -743,10 +776,46 @@ export default function DashboardScreen() {
 
         {/* Closed Tab */}
         {loanTab === "closed" && (
-          <View style={[s.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Feather name="inbox" size={40} color={colors.mutedForeground} style={{ marginBottom: 12 }} />
-            <Text style={[s.emptyTitle, { color: colors.foreground }]}>No Closed Loans</Text>
-            <Text style={[s.emptySub, { color: colors.mutedForeground }]}>You don't have any closed loans yet.</Text>
+          <View style={{ marginTop: 12, gap: 10 }}>
+            {closedLoans.length === 0 ? (
+              <View style={[s.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Feather name="inbox" size={40} color={colors.mutedForeground} style={{ marginBottom: 12 }} />
+                <Text style={[s.emptyTitle, { color: colors.foreground }]}>No Closed Loans</Text>
+                <Text style={[s.emptySub, { color: colors.mutedForeground }]}>Your paid-off loans will appear here.</Text>
+              </View>
+            ) : closedLoans.map((loan) => (
+              <TouchableOpacity key={loan.id} style={[s.loanCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                onPress={() => router.push("/(tabs)/my-loans")} activeOpacity={0.8}>
+                <View style={s.loanCardTop}>
+                  <View style={[s.loanIcon, { backgroundColor: loan.iconBg }]}>
+                    <Feather name={loan.icon} size={20} color={loan.iconColor} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <Text style={[s.loanType, { color: colors.foreground }]}>{loan.type}</Text>
+                      <View style={[s.badge, { backgroundColor: "#F3F4F6" }]}>
+                        <Text style={[s.badgeText, { color: "#6B7280" }]}>Closed</Text>
+                      </View>
+                    </View>
+                    <Text style={[s.loanId, { color: colors.mutedForeground }]}>Loan ID: {loan.loanId}</Text>
+                  </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text style={[s.loanMeta, { color: colors.mutedForeground }]}>Amount Paid</Text>
+                    <Text style={[s.loanVal, { color: colors.foreground }]}>${loan.amountPaid.toLocaleString()}</Text>
+                    <Text style={[s.loanMeta, { color: colors.mutedForeground, marginTop: 4 }]}>EMIs</Text>
+                    <Text style={[s.loanVal, { color: colors.foreground }]}>{loan.paidEmis}/{loan.totalEmis}</Text>
+                  </View>
+                  <Feather name="chevron-right" size={16} color={colors.mutedForeground} style={{ alignSelf: "center", marginLeft: 4 }} />
+                </View>
+                <View style={s.progRow}>
+                  <Text style={[s.progLabel, { color: colors.mutedForeground }]}>{Math.round(loan.progress * 100)}% Paid</Text>
+                  <View style={[s.progTrack, { backgroundColor: colors.muted }]}>
+                    <View style={[s.progBar, { width: `${loan.progress * 100}%` as any, backgroundColor: loan.barColor }]} />
+                  </View>
+                  <Text style={[s.progLabel, { color: colors.mutedForeground }]}>{loan.paidEmis}/{loan.totalEmis} EMIs</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
       </View>
@@ -761,7 +830,7 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
         <View style={[s.paymentsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          {PAYMENTS.map((payment, i) => (
+          {buildPaymentsFromLoans(loansData).map((payment, i) => (
             <View key={payment.id}>
               <TouchableOpacity style={s.paymentRow} onPress={() => setSelectedPayment(payment)} activeOpacity={0.7}>
                 <View style={[s.paymentIcon, { backgroundColor: payment.type === "disbursed" ? "#DBEAFE" : "#D1FAE5" }]}>

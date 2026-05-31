@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useLogoutUser } from "@workspace/api-client-react";
+import { useLogoutUser, useListMyLoans } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/lib/auth";
 
@@ -567,11 +567,23 @@ const elig = StyleSheet.create({
 // ── Foreclosure Calculator ────────────────────────────────────────────────────
 function ForeclosureModal({ onClose }: { onClose: () => void }) {
   const colors = useColors();
-  const LOANS = [
-    { id: "1", label: "Personal Loan — Finstar Bank", outstanding: 12450.00, rate: 8.49, months: 18 },
-    { id: "2", label: "Car Loan — AutoFin",           outstanding: 24800.00, rate: 7.50, months: 36 },
-  ];
-  const [selected, setSelected] = useState(LOANS[0]);
+  const { data: loans } = useListMyLoans();
+
+  const LOANS = (loans ?? []).map((l, i) => {
+    const outstanding = Math.max(l.totalPayable - l.amountPaid, 0);
+    const remaining = l.tenureMonths - Math.round(l.amountPaid / (l.emiAmount || 1));
+    return {
+      id: l.id,
+      label: `Loan ${l.id.slice(0, 8).toUpperCase()} — ${l.interestRate.toFixed(2)}% p.a.`,
+      outstanding,
+      rate: l.interestRate,
+      months: Math.max(remaining, 0),
+    };
+  });
+
+  const [selected, setSelected] = useState(LOANS[0] ?? {
+    id: "", label: "No loans available", outstanding: 0, rate: 0, months: 0,
+  });
   const [open, setOpen] = useState(false);
   const fee = selected.outstanding * 0.02;
   const total = selected.outstanding + fee;
